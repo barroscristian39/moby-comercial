@@ -1,0 +1,29 @@
+app = "moby-sst-frontend-prod"
+primary_region = "gru"
+
+[build.args]
+  NEXT_PUBLIC_API_URL = "https://moby-sst-backend-prod.fly.dev/api"
+
+[env]
+  NODE_ENV = "production"
+  HOSTNAME = "0.0.0.0"
+  PORT = "3000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_start_machines = true
+  auto_stop_machines = "off"
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "10s"
+    grace_period = "25s"
+    method = "GET"
+    path = "/login"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512

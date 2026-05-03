@@ -1,0 +1,69 @@
+services:
+  - type: web
+    name: moby-sst-backend
+    runtime: docker
+    plan: starter
+    region: virginia
+    dockerfilePath: ./deploy/render/backend.Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    healthCheckPath: /api/setup/status
+    preDeployCommand: pnpm --filter backend prisma:deploy
+    disk:
+      name: private-storage
+      mountPath: /app/storage
+      sizeGB: 5
+    buildFilter:
+      paths:
+        - apps/backend/**
+        - packages/shared/**
+        - deploy/render/backend.Dockerfile
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - tsconfig.json
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false
+      - key: COOKIE_SAME_SITE
+        value: none
+      - key: COOKIE_SECURE
+        value: 'true'
+      - key: PRIVATE_STORAGE_ROOT
+        value: /app/storage/private
+      - key: LIBREOFFICE_BIN
+        value: soffice
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: REFRESH_TOKEN_SECRET
+        generateValue: true
+
+  - type: web
+    name: moby-sst-frontend
+    runtime: docker
+    plan: starter
+    region: virginia
+    dockerfilePath: ./deploy/render/frontend.Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    healthCheckPath: /login
+    buildFilter:
+      paths:
+        - apps/frontend/**
+        - packages/shared/**
+        - deploy/render/frontend.Dockerfile
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - tsconfig.json
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_ORIGIN
+        sync: false

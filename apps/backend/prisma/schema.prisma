@@ -1,0 +1,805 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  TENANT_ADMIN
+  TECNICO_SST
+  GESTOR
+  RH
+  CONSULTA
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  CANCELED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGIN_FAILED
+  LOGOUT
+  REFRESH
+  PASSWORD_RESET_REQUEST
+  PASSWORD_RESET_COMPLETE
+  USER_PERMISSION_CHANGED
+  USER_ACTIVATED
+  USER_DEACTIVATED
+  TENANT_STATUS_CHANGED
+  ACTIVATE
+  DEACTIVATE
+}
+
+enum EmployeeGender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum EpiDeliveryReason {
+  ADMISSION
+  PERIODIC
+  REPLACEMENT
+  FUNCTION_CHANGE
+  CA_RENEWAL
+  OTHER
+}
+
+enum EpiCondition {
+  NEW
+  USED
+}
+
+enum FunctionStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum RiskType {
+  PHYSICAL
+  CHEMICAL
+  BIOLOGICAL
+  ERGONOMIC
+  ACCIDENT
+}
+
+enum RiskLevel {
+  NEGLIGIBLE
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskProbability {
+  RARE
+  UNLIKELY
+  POSSIBLE
+  LIKELY
+  ALMOST_CERTAIN
+}
+
+enum RiskSeverity {
+  INSIGNIFICANT
+  MINOR
+  MODERATE
+  MAJOR
+  CATASTROPHIC
+}
+
+enum AccidentStatus {
+  REPORTED
+  UNDER_INVESTIGATION
+  ACTION_PLAN_DEFINED
+  CLOSED
+}
+
+enum AccidentSeverity {
+  MINOR
+  MODERATE
+  SERIOUS
+  FATAL
+}
+
+enum AccidentType {
+  TYPICAL
+  COMMUTE
+  OCCUPATIONAL_DISEASE
+  NEAR_MISS
+}
+
+enum GeneratedDocumentStatus {
+  ACTIVE
+  DELETED
+}
+
+enum DocumentAuditAction {
+  CREATED
+  DELETED
+}
+
+model Tenant {
+  id        String       @id @default(uuid())
+  name      String
+  slug      String       @unique
+  status    TenantStatus @default(TRIAL)
+  plan      String       @default("manual")
+  startDate DateTime?    @map("start_date") @db.Date
+  endDate   DateTime?    @map("end_date") @db.Date
+  isActive  Boolean      @default(false) @map("is_active")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  companies          Company[]
+  units              Unit[]
+  sectors            Sector[]
+  jobFunctions       JobFunction[]
+  functionUnits      FunctionUnit[]
+  risks              Risk[]
+  accidents          Accident[]
+  functionTemplates  FunctionTemplate[]
+  generatedDocuments GeneratedDocument[]
+  accidentTemplates  AccidentTemplate[]
+  accidentGeneratedDocuments AccidentGeneratedDocument[]
+  documentAuditLogs  DocumentAuditLog[]
+  employees          Employee[]
+  epiItems           EpiItem[]
+  epiDeliveries      EpiDelivery[]
+  users              User[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+
+  @@index([status, isActive])
+  @@map("tenants")
+}
+
+model Company {
+  id                  String    @id @default(uuid())
+  tenantId            String    @map("tenant_id")
+  name                String
+  tradeName           String?   @map("trade_name")
+  cnpj                String
+  cnae                String?
+  addressStreet       String?   @map("address_street")
+  addressNumber       String?   @map("address_number")
+  addressComplement   String?   @map("address_complement")
+  addressNeighborhood String?   @map("address_neighborhood")
+  addressCity         String?   @map("address_city")
+  addressState        String?   @map("address_state")
+  addressZipCode      String?   @map("address_zip_code")
+  phone               String?
+  email               String?
+  responsibleName     String?   @map("responsible_name")
+  responsibleCpf      String?   @map("responsible_cpf")
+  logoUrl             String?   @map("logo_url")
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  deletedAt           DateTime? @map("deleted_at")
+  deletedBy           String?   @map("deleted_by")
+
+  tenant        Tenant              @relation(fields: [tenantId], references: [id])
+  units         Unit[]
+  primaryUsers  User[]              @relation("PrimaryCompany")
+  userAccess    UserCompanyAccess[]
+  sectors       Sector[]
+  jobFunctions  JobFunction[]
+  risks         Risk[]
+  accidents     Accident[]
+  accidentTemplates AccidentTemplate[]
+  accidentGeneratedDocuments AccidentGeneratedDocument[]
+  employees     Employee[]
+  epiItems      EpiItem[]
+  epiDeliveries EpiDelivery[]
+  notifications Notification[]
+
+  @@unique([tenantId, cnpj])
+  @@index([tenantId])
+  @@index([tenantId, deletedAt])
+  @@map("companies")
+}
+
+model Unit {
+  id                  String    @id @default(uuid())
+  tenantId            String    @map("tenant_id")
+  companyId           String    @map("company_id")
+  name                String
+  cnpj                String?
+  addressStreet       String?   @map("address_street")
+  addressNumber       String?   @map("address_number")
+  addressComplement   String?   @map("address_complement")
+  addressNeighborhood String?   @map("address_neighborhood")
+  addressCity         String?   @map("address_city")
+  addressState        String?   @map("address_state")
+  addressZipCode      String?   @map("address_zip_code")
+  phone               String?
+  email               String?
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  deletedAt           DateTime? @map("deleted_at")
+  deletedBy           String?   @map("deleted_by")
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  company            Company             @relation(fields: [companyId], references: [id])
+  sectors            Sector[]
+  jobFunctions       JobFunction[]
+  risks              Risk[]
+  accidents          Accident[]
+  accidentGeneratedDocuments AccidentGeneratedDocument[]
+  employees          Employee[]
+  userAccess         UserUnitAccess[]
+  functionUnits      FunctionUnit[]
+  generatedDocuments GeneratedDocument[]
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([companyId])
+  @@map("units")
+}
+
+model Sector {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  companyId   String    @map("company_id")
+  unitId      String    @map("unit_id")
+  name        String
+  description String?
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  company      Company       @relation(fields: [companyId], references: [id])
+  unit         Unit          @relation(fields: [unitId], references: [id])
+  jobFunctions JobFunction[]
+  employees    Employee[]
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([unitId])
+  @@map("sectors")
+}
+
+model JobFunction {
+  id          String         @id @default(uuid())
+  tenantId    String         @map("tenant_id")
+  companyId   String         @map("company_id")
+  unitId      String?        @map("unit_id")
+  sectorId    String?        @map("sector_id")
+  name        String
+  cbo         String?
+  description String?
+  status      FunctionStatus @default(ACTIVE)
+  isActive    Boolean        @default(true) @map("is_active")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  deletedAt   DateTime?      @map("deleted_at")
+  deletedBy   String?        @map("deleted_by")
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  company            Company             @relation(fields: [companyId], references: [id])
+  unit               Unit?               @relation(fields: [unitId], references: [id])
+  sector             Sector?             @relation(fields: [sectorId], references: [id])
+  employees          Employee[]
+  functionUnits      FunctionUnit[]
+  risks              Risk[]
+  accidents          Accident[]
+  templates          FunctionTemplate[]
+  generatedDocuments GeneratedDocument[]
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([unitId])
+  @@index([tenantId, status])
+  @@map("job_functions")
+}
+
+model FunctionUnit {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  jobFunctionId String   @map("function_id")
+  unitId        String   @map("unit_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  jobFunction JobFunction @relation(fields: [jobFunctionId], references: [id], onDelete: Cascade)
+  unit        Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([jobFunctionId, unitId])
+  @@index([tenantId])
+  @@index([unitId])
+  @@map("function_units")
+}
+
+model Employee {
+  id            String          @id @default(uuid())
+  tenantId      String          @map("tenant_id")
+  companyId     String          @map("company_id")
+  unitId        String          @map("unit_id")
+  sectorId      String?         @map("sector_id")
+  jobFunctionId String          @map("job_function_id")
+  name          String
+  cpf           String
+  email         String?
+  phone         String?
+  birthDate     DateTime?       @map("birth_date") @db.Date
+  gender        EmployeeGender?
+  registration  String?
+  admissionDate DateTime        @map("admission_date") @db.Date
+  dismissalDate DateTime?       @map("dismissal_date") @db.Date
+  isActive      Boolean         @default(true) @map("is_active")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  deletedAt     DateTime?       @map("deleted_at")
+  deletedBy     String?         @map("deleted_by")
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  company            Company             @relation(fields: [companyId], references: [id])
+  unit               Unit                @relation(fields: [unitId], references: [id])
+  sector             Sector?             @relation(fields: [sectorId], references: [id])
+  jobFunction        JobFunction         @relation(fields: [jobFunctionId], references: [id])
+  accidents          Accident[]
+  epiDeliveries      EpiDelivery[]
+  generatedDocuments GeneratedDocument[]
+  accidentGeneratedDocuments AccidentGeneratedDocument[]
+
+  @@unique([tenantId, companyId, cpf])
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([unitId])
+  @@map("employees")
+}
+
+model Risk {
+  id              String          @id @default(uuid())
+  tenantId        String          @map("tenant_id")
+  companyId       String          @map("company_id")
+  unitId          String          @map("unit_id")
+  jobFunctionId   String?         @map("job_function_id")
+  name            String
+  type            RiskType
+  level           RiskLevel
+  probability     RiskProbability
+  severity        RiskSeverity
+  description     String?
+  controlMeasures String?         @map("control_measures")
+  isActive        Boolean         @default(true) @map("is_active")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  deletedAt       DateTime?       @map("deleted_at")
+  deletedBy       String?         @map("deleted_by")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  company     Company     @relation(fields: [companyId], references: [id])
+  unit        Unit        @relation(fields: [unitId], references: [id])
+  jobFunction JobFunction? @relation(fields: [jobFunctionId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([unitId])
+  @@index([jobFunctionId])
+  @@index([type, level, isActive])
+  @@map("risks")
+}
+
+model Accident {
+  id                    String           @id @default(uuid())
+  tenantId              String           @map("tenant_id")
+  companyId             String           @map("company_id")
+  unitId                String           @map("unit_id")
+  employeeId            String           @map("employee_id")
+  jobFunctionId         String?          @map("job_function_id")
+  code                  String           @unique
+  occurredAt            DateTime         @map("occurred_at")
+  reportedAt            DateTime         @default(now()) @map("reported_at")
+  location              String
+  accidentType          AccidentType     @map("accident_type")
+  severity              AccidentSeverity
+  status                AccidentStatus   @default(REPORTED)
+  description           String
+  injuredBodyPart       String?          @map("injured_body_part")
+  medicalCareProvided   Boolean          @default(false) @map("medical_care_provided")
+  leaveRequired         Boolean          @default(false) @map("leave_required")
+  leaveDays             Int              @default(0) @map("leave_days")
+  catIssued             Boolean          @default(false) @map("cat_issued")
+  catNumber             String?          @map("cat_number")
+  witnesses             String?
+  immediateActions      String?          @map("immediate_actions")
+  investigatorName      String?          @map("investigator_name")
+  investigationStartedAt DateTime?       @map("investigation_started_at")
+  immediateCause        String?          @map("immediate_cause")
+  rootCause             String?          @map("root_cause")
+  contributingFactors   String?          @map("contributing_factors")
+  correctiveActions     String?          @map("corrective_actions")
+  preventiveMeasures    String?          @map("preventive_measures")
+  managerNotes          String?          @map("manager_notes")
+  recommendations       String?
+  conclusionSummary     String?          @map("conclusion_summary")
+  closureDate           DateTime?        @map("closure_date")
+  isActive              Boolean          @default(true) @map("is_active")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+  deletedAt             DateTime?        @map("deleted_at")
+  deletedBy             String?          @map("deleted_by")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  company     Company      @relation(fields: [companyId], references: [id])
+  unit        Unit         @relation(fields: [unitId], references: [id])
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+  jobFunction JobFunction? @relation(fields: [jobFunctionId], references: [id])
+  generatedDocuments AccidentGeneratedDocument[]
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([unitId])
+  @@index([employeeId])
+  @@index([jobFunctionId])
+  @@index([status, severity, occurredAt])
+  @@map("accidents")
+}
+
+model FunctionTemplate {
+  id            String    @id @default(uuid())
+  tenantId      String    @map("tenant_id")
+  jobFunctionId String    @map("function_id")
+  documentType  String    @map("document_type")
+  name          String
+  filePath      String    @map("file_path")
+  version       Int
+  variables     Json      @default("[]")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdBy     String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  deletedAt     DateTime? @map("deleted_at")
+  deletedBy     String?   @map("deleted_by")
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  jobFunction        JobFunction         @relation(fields: [jobFunctionId], references: [id])
+  creator            User                @relation("FunctionTemplateCreatedBy", fields: [createdBy], references: [id])
+  generatedDocuments GeneratedDocument[]
+
+  @@unique([jobFunctionId, documentType, version])
+  @@index([tenantId])
+  @@index([tenantId, jobFunctionId])
+  @@index([jobFunctionId, documentType, isActive])
+  @@map("function_templates")
+}
+
+model GeneratedDocument {
+  id            String                  @id @default(uuid())
+  tenantId      String                  @map("tenant_id")
+  employeeId    String                  @map("employee_id")
+  jobFunctionId String                  @map("function_id")
+  unitId        String                  @map("unit_id")
+  templateId    String                  @map("template_id")
+  documentType  String                  @map("document_type")
+  filePath      String                  @map("file_path")
+  generatedBy   String                  @map("generated_by")
+  generatedAt   DateTime                @default(now()) @map("generated_at")
+  status        GeneratedDocumentStatus @default(ACTIVE)
+  deletedAt     DateTime?               @map("deleted_at")
+  deletedBy     String?                 @map("deleted_by")
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  employee    Employee           @relation(fields: [employeeId], references: [id])
+  jobFunction JobFunction        @relation(fields: [jobFunctionId], references: [id])
+  unit        Unit               @relation(fields: [unitId], references: [id])
+  template    FunctionTemplate   @relation(fields: [templateId], references: [id])
+  generator   User               @relation("GeneratedDocumentGeneratedBy", fields: [generatedBy], references: [id])
+  auditLogs   DocumentAuditLog[]
+
+  @@index([tenantId])
+  @@index([employeeId, status])
+  @@index([tenantId, employeeId])
+  @@index([templateId])
+  @@map("generated_documents")
+}
+
+model AccidentTemplate {
+  id            String    @id @default(uuid())
+  tenantId      String    @map("tenant_id")
+  companyId     String    @map("company_id")
+  documentType  String    @map("document_type")
+  name          String
+  filePath      String    @map("file_path")
+  version       Int
+  variables     Json      @default("[]")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdBy     String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  deletedAt     DateTime? @map("deleted_at")
+  deletedBy     String?   @map("deleted_by")
+
+  tenant             Tenant                     @relation(fields: [tenantId], references: [id])
+  company            Company                    @relation(fields: [companyId], references: [id])
+  creator            User                       @relation(fields: [createdBy], references: [id])
+  generatedDocuments AccidentGeneratedDocument[]
+
+  @@unique([companyId, documentType, version])
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([companyId, documentType, isActive])
+  @@map("accident_templates")
+}
+
+model AccidentGeneratedDocument {
+  id            String                  @id @default(uuid())
+  tenantId      String                  @map("tenant_id")
+  companyId     String                  @map("company_id")
+  accidentId    String                  @map("accident_id")
+  employeeId    String                  @map("employee_id")
+  unitId        String                  @map("unit_id")
+  templateId    String                  @map("template_id")
+  documentType  String                  @map("document_type")
+  filePath      String                  @map("file_path")
+  generatedBy   String                  @map("generated_by")
+  generatedAt   DateTime                @default(now()) @map("generated_at")
+  status        GeneratedDocumentStatus @default(ACTIVE)
+  deletedAt     DateTime?               @map("deleted_at")
+  deletedBy     String?                 @map("deleted_by")
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id])
+  company   Company          @relation(fields: [companyId], references: [id])
+  accident  Accident         @relation(fields: [accidentId], references: [id])
+  employee  Employee         @relation(fields: [employeeId], references: [id])
+  unit      Unit             @relation(fields: [unitId], references: [id])
+  template  AccidentTemplate @relation(fields: [templateId], references: [id])
+  generator User             @relation(fields: [generatedBy], references: [id])
+
+  @@index([tenantId])
+  @@index([companyId])
+  @@index([accidentId, status])
+  @@index([employeeId])
+  @@index([templateId])
+  @@map("accident_generated_documents")
+}
+
+model DocumentAuditLog {
+  id         String              @id @default(uuid())
+  tenantId   String              @map("tenant_id")
+  documentId String              @map("document_id")
+  action     DocumentAuditAction
+  userId     String              @map("user_id")
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id])
+  document GeneratedDocument @relation(fields: [documentId], references: [id])
+  user     User              @relation("DocumentAuditUser", fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([documentId])
+  @@index([userId])
+  @@map("document_audit_logs")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  tenantId     String?   @map("tenant_id")
+  companyId    String?   @map("company_id")
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  name         String
+  role         Role      @default(CONSULTA)
+  avatarUrl    String?   @map("avatar_url")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdBy    String?   @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by")
+
+  tenant                   Tenant?              @relation(fields: [tenantId], references: [id])
+  company                  Company?             @relation("PrimaryCompany", fields: [companyId], references: [id])
+  createdByUser            User?                @relation("UserCreatedBy", fields: [createdBy], references: [id])
+  createdUsers             User[]               @relation("UserCreatedBy")
+  createdFunctionTemplates FunctionTemplate[]   @relation("FunctionTemplateCreatedBy")
+  generatedDocuments       GeneratedDocument[]  @relation("GeneratedDocumentGeneratedBy")
+  createdAccidentTemplates AccidentTemplate[]
+  generatedAccidentDocuments AccidentGeneratedDocument[]
+  documentAuditLogs        DocumentAuditLog[]   @relation("DocumentAuditUser")
+  companyAccess            UserCompanyAccess[]
+  unitAccess               UserUnitAccess[]
+  refreshTokens            RefreshToken[]
+  passwordResetTokens      PasswordResetToken[]
+  notifications            Notification[]
+  auditLogs                AuditLog[]
+
+  @@index([tenantId])
+  @@index([tenantId, deletedAt])
+  @@index([companyId])
+  @@map("users")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  tenantId  String?          @map("tenant_id")
+  companyId String?          @map("company_id")
+  userId    String           @map("user_id")
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  link      String?
+  metadata  Json?
+  isRead    Boolean          @default(false) @map("is_read")
+  readAt    DateTime?        @map("read_at")
+  isActive  Boolean          @default(true) @map("is_active")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  deletedAt DateTime?        @map("deleted_at")
+  deletedBy String?          @map("deleted_by")
+
+  tenant  Tenant?  @relation(fields: [tenantId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id])
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([tenantId])
+  @@index([companyId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model UserCompanyAccess {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  companyId String   @map("company_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@map("user_company_access")
+}
+
+model UserUnitAccess {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  unitId    String   @map("unit_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, unitId])
+  @@index([unitId])
+  @@map("user_unit_access")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  ip        String?
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model EpiItem {
+  id               String    @id @default(uuid())
+  tenantId         String    @map("tenant_id")
+  companyId        String    @map("company_id")
+  name             String
+  description      String?
+  caNumber         String    @map("ca_number")
+  caExpiry         DateTime? @map("ca_expiry") @db.Date
+  manufacturer     String?
+  unitOfMeasure    String    @default("unidade") @map("unit_of_measure")
+  stockQuantity    Int       @default(0) @map("stock_quantity")
+  minStockQuantity Int       @default(0) @map("min_stock_quantity")
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+  deletedBy        String?   @map("deleted_by")
+
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
+  company    Company       @relation(fields: [companyId], references: [id])
+  deliveries EpiDelivery[]
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@map("epi_items")
+}
+
+model EpiDelivery {
+  id               String            @id @default(uuid())
+  tenantId         String            @map("tenant_id")
+  companyId        String            @map("company_id")
+  employeeId       String            @map("employee_id")
+  epiItemId        String            @map("epi_item_id")
+  quantity         Int               @default(1)
+  deliveredAt      DateTime          @map("delivered_at") @db.Date
+  reason           EpiDeliveryReason
+  condition        EpiCondition      @default(NEW)
+  deliveredBy      String?           @map("delivered_by")
+  returnedAt       DateTime?         @map("returned_at") @db.Date
+  notes            String?
+  caNumberSnapshot String?           @map("ca_number_snapshot")
+  isActive         Boolean           @default(true) @map("is_active")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  deletedAt        DateTime?         @map("deleted_at")
+  deletedBy        String?           @map("deleted_by")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
+  epiItem  EpiItem  @relation(fields: [epiItemId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([employeeId])
+  @@index([epiItemId])
+  @@map("epi_deliveries")
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  tenantId    String?     @map("tenant_id")
+  actorUserId String?     @map("actor_user_id")
+  action      AuditAction
+  entityType  String      @map("entity_type")
+  entityId    String?     @map("entity_id")
+  metadata    Json?
+  ip          String?
+  userAgent   String?     @map("user_agent")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  actor  User?   @relation(fields: [actorUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@map("audit_logs")
+}

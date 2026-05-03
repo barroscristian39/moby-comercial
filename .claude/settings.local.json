@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install *)",
+      "Bash(pnpm --filter backend prisma:generate)",
+      "Bash(npx kill-port *)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(pnpm dev:frontend)",
+      "Bash(curl -s http://localhost:3001/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"x\",\"password\":\"x\"}')",
+      "Bash(curl -s --max-time 2 http://localhost:3001/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"x\",\"password\":\"x\"}')",
+      "Bash(netstat -ano)",
+      "Bash(tasklist /FI \"PID eq 8500\")",
+      "Bash(tasklist /FI \"PID eq 19936\")",
+      "Bash(pnpm dev:backend)",
+      "Bash(pnpm --filter @moby/shared build)",
+      "Bash(pnpm --filter backend dev)",
+      "Bash(node -e ' *)",
+      "Bash(npx tsc *)",
+      "Bash(pnpm --filter frontend dev)",
+      "Bash(docker-compose up *)",
+      "Bash(pnpm --filter backend prisma:migrate)",
+      "Bash(pnpm --filter backend exec prisma migrate dev --name add_epi_fase3)",
+      "Bash(docker-compose ps *)",
+      "Bash(npx prisma *)",
+      "Bash(taskkill /F /IM \"node.exe\" /FI \"WINDOWTITLE eq prisma*\")",
+      "Bash(tasklist)",
+      "Bash(findstr -i \"node\")",
+      "Bash(docker exec *)",
+      "Bash(wmic process *)",
+      "Bash(findstr -i \"prisma\")",
+      "Bash(powershell -Command 'Get-Process node | Select-Object Id, @{N='\\\\''Cmd'\\\\'';E={\\($_.Path\\)}} | Format-Table -AutoSize')",
+      "Bash(echo \"Backend PID: $!\")",
+      "Bash(echo \"Frontend PID: $!\")",
+      "Read(//tmp/**)"
+    ]
+  }
+}

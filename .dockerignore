@@ -1,0 +1,15 @@
+.git
+.gitignore
+.codex-run
+node_modules
+**/node_modules
+apps/frontend/.next
+apps/backend/dist
+packages/shared/dist
+coverage
+storage
+.env
+.env.*
+apps/**/.env
+!apps/**/.env.example
+

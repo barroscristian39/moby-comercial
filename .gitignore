@@ -1,0 +1,39 @@
+# Dependências
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+.next/
+out/
+build/
+
+# Ambiente — NUNCA commitar
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Puppeteer cache
+.cache/puppeteer/
+
+# Testes
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Sistema
+Thumbs.db
