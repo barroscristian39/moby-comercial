@@ -21,6 +21,13 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
+interface NotificationsModalProps {
+  badgeClassName?: string
+  bellClassName?: string
+  fallbackBadgeText?: string
+  triggerClassName?: string
+}
+
 const FILTER_LABELS: Record<NotificationFilter, string> = {
   [NotificationFilter.ALL]: 'Todas',
   [NotificationFilter.UNREAD]: 'Não lidas',
@@ -41,7 +48,12 @@ const TYPE_STYLES: Record<NotificationType, string> = {
   [NotificationType.ERROR]: 'border-rose-200 bg-rose-50 text-rose-700',
 }
 
-export function NotificationsModal() {
+export function NotificationsModal({
+  badgeClassName,
+  bellClassName,
+  fallbackBadgeText,
+  triggerClassName,
+}: NotificationsModalProps = {}) {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
   const [open, setOpen] = useState(false)
@@ -63,6 +75,7 @@ export function NotificationsModal() {
     readCount: 0,
   }
   const notifications = notificationsQuery.data?.data ?? []
+  const badgeText = summary.unreadCount > 0 ? formatUnreadCount(summary.unreadCount) : fallbackBadgeText
 
   async function handleMarkAsRead(id: string) {
     await markNotificationRead.mutateAsync(id)
@@ -87,11 +100,16 @@ export function NotificationsModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label="Abrir notificações">
-          <Bell className="h-4 w-4" />
-          {summary.unreadCount > 0 && (
-            <Badge className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center px-1 text-[10px]">
-              {formatUnreadCount(summary.unreadCount)}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn('relative', triggerClassName)}
+          aria-label="Abrir notificações"
+        >
+          <Bell className={cn('h-4 w-4', bellClassName)} />
+          {badgeText && (
+            <Badge className={cn('absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center px-1 text-[10px]', badgeClassName)}>
+              {badgeText}
             </Badge>
           )}
         </Button>

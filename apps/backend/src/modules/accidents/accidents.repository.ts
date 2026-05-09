@@ -161,4 +161,38 @@ export class AccidentsRepository {
       include: accidentInclude,
     })
   }
+
+  findEvidenceById(id: string) {
+    return this.prisma.accidentEvidence.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+      },
+    })
+  }
+
+  findEvidencesByAccidentId(accidentId: string) {
+    return this.prisma.accidentEvidence.findMany({
+      where: {
+        accidentId,
+        deletedAt: null,
+      },
+      orderBy: [{ createdAt: 'desc' }],
+    })
+  }
+
+  createEvidence(data: Prisma.AccidentEvidenceUncheckedCreateInput) {
+    return this.prisma.accidentEvidence.create({ data })
+  }
+
+  softDeleteEvidence(id: string, deletedBy: string) {
+    return this.prisma.accidentEvidence.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        deletedBy,
+        isActive: false,
+      },
+    })
+  }
 }

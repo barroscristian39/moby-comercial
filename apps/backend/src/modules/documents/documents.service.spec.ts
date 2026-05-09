@@ -17,8 +17,7 @@ describe('DocumentsService', () => {
     markDocumentDeleted: jest.fn(),
   }
   const storage = {
-    saveBuffer: jest.fn(),
-    readBuffer: jest.fn(),
+    readLegacyBuffer: jest.fn(),
     assertValidDocx: jest.fn(),
   }
   const exportService = {
@@ -74,10 +73,8 @@ describe('DocumentsService', () => {
       jobFunctionId: 'function-1',
       documentType: 'OS',
       isActive: true,
-      filePath: 'tenants/tenant-1/templates/template-1.docx',
+      fileContent: Buffer.from('template'),
     })
-    storage.readBuffer.mockResolvedValue(Buffer.from('template'))
-    storage.saveBuffer.mockResolvedValue('tenants/tenant-1/employees/employee-1/generated-documents/document.docx')
     docx.render.mockReturnValue(Buffer.from('rendered'))
     repository.createGeneratedDocument.mockResolvedValue({
       id: 'document-1',
@@ -102,6 +99,7 @@ describe('DocumentsService', () => {
         functionId: 'function-1',
         unitId: 'unit-1',
         templateId: 'template-1',
+        fileContent: Buffer.from('rendered'),
       }),
     )
     expect(docx.render).toHaveBeenCalledWith(
@@ -158,10 +156,9 @@ describe('DocumentsService', () => {
       tenantId: 'tenant-1',
       employee,
       documentType: 'ORDEM_SERVICO',
-      filePath: 'tenants/tenant-1/employees/employee-1/generated-documents/document.docx',
+      fileContent: Buffer.from('docx'),
       status: 'ACTIVE',
     })
-    storage.readBuffer.mockResolvedValue(Buffer.from('docx'))
     exportService.buildDownloadFile.mockResolvedValue({
       buffer: Buffer.from('pdf'),
       filename: 'ordem-servico-document-1.pdf',
@@ -188,7 +185,7 @@ describe('DocumentsService', () => {
       tenantId: 'tenant-1',
       employee,
       documentType: 'ORDEM_SERVICO',
-      filePath: 'tenants/tenant-1/employees/employee-1/generated-documents/document.docx',
+      fileContent: Buffer.from('docx'),
       status: 'ACTIVE',
     })
 

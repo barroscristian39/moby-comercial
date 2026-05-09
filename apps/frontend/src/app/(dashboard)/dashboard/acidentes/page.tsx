@@ -2,9 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import {
   AlertTriangle,
   CalendarClock,
@@ -22,11 +19,11 @@ import {
 import {
   AccidentSeverity,
   AccidentStatus,
-  AccidentType,
   Permission,
   Role,
 } from '@moby/shared'
 
+import { CreateAccidentQiatDialog } from '@/components/accidents/create-accident-qiat-dialog'
 import { Topbar } from '@/components/layout/topbar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -41,23 +38,15 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { useAccidentTemplates, useDeleteAccidentTemplate, useUpdateAccidentTemplate, useUploadAccidentTemplate } from '@/hooks/use-accident-documents'
-import { useAccidents, useCreateAccident } from '@/hooks/use-accidents'
+import { useAccidents } from '@/hooks/use-accidents'
 import { useCompanies } from '@/hooks/use-companies'
-import { useEmployees } from '@/hooks/use-employees'
 import { useUnits } from '@/hooks/use-units'
 import type { AccidentTemplate } from '@/lib/api/accident-documents.api'
 import { ACCIDENT_DOCUMENT_TYPE_LABELS, ACCIDENT_DOCUMENT_TYPES, ACCIDENT_TEMPLATE_VARIABLES } from '@/lib/accident-document-constants'
+import { ACCIDENT_SEVERITY_LABELS, ACCIDENT_STATUS_LABELS, ACCIDENT_TYPE_LABELS, formatCpf } from '@/lib/accident-qiat'
 import { useAuthStore } from '@/store/auth.store'
 import { useCompanyStore } from '@/store/company.store'
-
-const ACCIDENT_STATUS_LABELS: Record<AccidentStatus, string> = {
-  REPORTED: 'Registrado',
-  UNDER_INVESTIGATION: 'Em investigação',
-  ACTION_PLAN_DEFINED: 'Plano de ação',
-  CLOSED: 'Encerrado',
-}
 
 const ACCIDENT_STATUS_BADGES: Record<AccidentStatus, 'warning' | 'default' | 'secondary' | 'success'> = {
   REPORTED: 'warning',
@@ -66,61 +55,11 @@ const ACCIDENT_STATUS_BADGES: Record<AccidentStatus, 'warning' | 'default' | 'se
   CLOSED: 'success',
 }
 
-const ACCIDENT_SEVERITY_LABELS: Record<AccidentSeverity, string> = {
-  MINOR: 'Leve',
-  MODERATE: 'Moderado',
-  SERIOUS: 'Grave',
-  FATAL: 'Fatal',
-}
-
 const ACCIDENT_SEVERITY_BADGES: Record<AccidentSeverity, 'muted' | 'warning' | 'destructive'> = {
   MINOR: 'muted',
   MODERATE: 'warning',
   SERIOUS: 'destructive',
   FATAL: 'destructive',
-}
-
-const ACCIDENT_TYPE_LABELS: Record<AccidentType, string> = {
-  TYPICAL: 'Típico',
-  COMMUTE: 'Trajeto',
-  OCCUPATIONAL_DISEASE: 'Doença ocupacional',
-  NEAR_MISS: 'Quase acidente',
-}
-
-const createAccidentSchema = z.object({
-  companyId: z.string().uuid('Selecione a empresa'),
-  employeeId: z.string().uuid('Selecione o colaborador'),
-  occurredAt: z.string().min(1, 'Informe a data e hora'),
-  location: z.string().trim().min(3, 'Informe o local do acidente'),
-  accidentType: z.nativeEnum(AccidentType),
-  severity: z.nativeEnum(AccidentSeverity),
-  description: z.string().trim().min(10, 'Descreva o acidente'),
-  injuredBodyPart: z.string().optional(),
-  medicalCareProvided: z.boolean().default(false),
-  leaveRequired: z.boolean().default(false),
-  leaveDays: z.coerce.number().int().min(0).default(0),
-  catIssued: z.boolean().default(false),
-  catNumber: z.string().optional(),
-  immediateActions: z.string().optional(),
-})
-
-type CreateAccidentForm = z.infer<typeof createAccidentSchema>
-
-function toDateTimeLocalInput(value: Date) {
-  const year = value.getFullYear()
-  const month = String(value.getMonth() + 1).padStart(2, '0')
-  const day = String(value.getDate()).padStart(2, '0')
-  const hours = String(value.getHours()).padStart(2, '0')
-  const minutes = String(value.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}`
-}
-
-function formatCpf(value: string) {
-  const digits = value.replace(/\D/g, '').slice(0, 11)
-  return digits
-    .replace(/^(\d{3})(\d)/, '$1.$2')
-    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1-$2')
 }
 
 export default function AcidentesPage() {
@@ -157,27 +96,6 @@ export default function AcidentesPage() {
     status: statusFilter || undefined,
     search: search || undefined,
   })
-  const createAccident = useCreateAccident()
-
-  const form = useForm<CreateAccidentForm>({
-    resolver: zodResolver(createAccidentSchema),
-    defaultValues: {
-      companyId: '',
-      employeeId: '',
-      occurredAt: toDateTimeLocalInput(new Date()),
-      location: '',
-      accidentType: AccidentType.TYPICAL,
-      severity: AccidentSeverity.MODERATE,
-      description: '',
-      injuredBodyPart: '',
-      medicalCareProvided: false,
-      leaveRequired: false,
-      leaveDays: 0,
-      catIssued: false,
-      catNumber: '',
-      immediateActions: '',
-    },
-  })
 
   useEffect(() => {
     if (!activeCompany?.id) return
@@ -190,20 +108,9 @@ export default function AcidentesPage() {
     setTemplateCompanyId((current) => current || preferredCompanyId)
   }, [companyFilterId, activeCompany?.id])
 
-  const modalCompanyId = form.watch('companyId')
-  const leaveRequired = form.watch('leaveRequired')
-  const catIssued = form.watch('catIssued')
-
-  const { data: employeesData } = useEmployees({
-    page: 1,
-    perPage: 100,
-    companyId: modalCompanyId || companyFilterId || activeCompany?.id || undefined,
-  })
-
   const companies = companiesData?.data ?? []
   const units = unitsData?.data ?? []
   const accidents = accidentsQuery.data?.data ?? []
-  const employees = employeesData?.data ?? []
 
   const templateMutationCompanyId = templateCompanyId || companyFilterId || activeCompany?.id || ''
   const accidentTemplatesQuery = useAccidentTemplates(templateCompanyId || undefined)
@@ -233,24 +140,11 @@ export default function AcidentesPage() {
   }, [templates])
 
   function openCreateDialog() {
-    const initialCompanyId = companyFilterId || activeCompany?.id || ''
-    form.reset({
-      companyId: initialCompanyId,
-      employeeId: '',
-      occurredAt: toDateTimeLocalInput(new Date()),
-      location: '',
-      accidentType: AccidentType.TYPICAL,
-      severity: AccidentSeverity.MODERATE,
-      description: '',
-      injuredBodyPart: '',
-      medicalCareProvided: false,
-      leaveRequired: false,
-      leaveDays: 0,
-      catIssued: false,
-      catNumber: '',
-      immediateActions: '',
-    })
     setIsDialogOpen(true)
+  }
+
+  function handleCreateDialogOpenChange(open: boolean) {
+    setIsDialogOpen(open)
   }
 
   function openTemplateManager() {
@@ -262,27 +156,6 @@ export default function AcidentesPage() {
     setLastUploadedTemplate(null)
     setTemplateError(null)
     setIsTemplateManagerOpen(true)
-  }
-
-  async function handleCreate(values: CreateAccidentForm) {
-    const accident = await createAccident.mutateAsync({
-      employeeId: values.employeeId,
-      occurredAt: values.occurredAt,
-      location: values.location,
-      accidentType: values.accidentType,
-      severity: values.severity,
-      description: values.description,
-      injuredBodyPart: values.injuredBodyPart || undefined,
-      medicalCareProvided: values.medicalCareProvided,
-      leaveRequired: values.leaveRequired,
-      leaveDays: values.leaveRequired ? values.leaveDays : 0,
-      catIssued: values.catIssued,
-      catNumber: values.catIssued ? values.catNumber || undefined : undefined,
-      immediateActions: values.immediateActions || undefined,
-    })
-
-    setIsDialogOpen(false)
-    router.push(`/dashboard/acidentes/${accident.id}`)
   }
 
   async function handleTemplateUpload(event: React.FormEvent<HTMLFormElement>) {
@@ -527,171 +400,12 @@ export default function AcidentesPage() {
         </Card>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Registrar acidente</DialogTitle>
-            <DialogDescription>
-              Crie o registro inicial do acidente para depois seguir com a investigação e a conclusão.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={form.handleSubmit(handleCreate)}>
-            <div className="space-y-1.5">
-              <Label htmlFor="companyId">Empresa *</Label>
-              <select
-                id="companyId"
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                {...form.register('companyId')}
-                onChange={(event) => {
-                  form.setValue('companyId', event.target.value, { shouldValidate: true })
-                  form.setValue('employeeId', '')
-                }}
-              >
-                <option value="">Selecione a empresa</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.tradeName ?? company.name}
-                  </option>
-                ))}
-              </select>
-              {form.formState.errors.companyId && (
-                <p className="text-xs text-destructive">{form.formState.errors.companyId.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="employeeId">Colaborador *</Label>
-              <select
-                id="employeeId"
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                {...form.register('employeeId')}
-              >
-                <option value="">Selecione o colaborador</option>
-                {employees.map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.name} · {unitMap[employee.unitId] ?? 'Unidade'} · {formatCpf(employee.cpf)}
-                  </option>
-                ))}
-              </select>
-              {form.formState.errors.employeeId && (
-                <p className="text-xs text-destructive">{form.formState.errors.employeeId.message}</p>
-              )}
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="occurredAt">Data e hora do acidente *</Label>
-                <Input id="occurredAt" type="datetime-local" {...form.register('occurredAt')} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="location">Local *</Label>
-                <Input id="location" placeholder="Ex: área de produção, almoxarifado..." {...form.register('location')} />
-                {form.formState.errors.location && (
-                  <p className="text-xs text-destructive">{form.formState.errors.location.message}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="accidentType">Tipo *</Label>
-                <select
-                  id="accidentType"
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                  {...form.register('accidentType')}
-                >
-                  {Object.values(AccidentType).map((type) => (
-                    <option key={type} value={type}>{ACCIDENT_TYPE_LABELS[type]}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="severity">Gravidade *</Label>
-                <select
-                  id="severity"
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                  {...form.register('severity')}
-                >
-                  {Object.values(AccidentSeverity).map((severity) => (
-                    <option key={severity} value={severity}>{ACCIDENT_SEVERITY_LABELS[severity]}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="description">Descrição do acidente *</Label>
-              <Textarea
-                id="description"
-                placeholder="Descreva o que aconteceu, contexto e dinâmica da ocorrência."
-                {...form.register('description')}
-              />
-              {form.formState.errors.description && (
-                <p className="text-xs text-destructive">{form.formState.errors.description.message}</p>
-              )}
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="injuredBodyPart">Parte do corpo atingida</Label>
-                <Input id="injuredBodyPart" placeholder="Ex: mão direita, lombar..." {...form.register('injuredBodyPart')} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="catNumber">Número CAT</Label>
-                <Input id="catNumber" disabled={!catIssued} placeholder="Preencha se a CAT já foi emitida" {...form.register('catNumber')} />
-              </div>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
-                <input type="checkbox" {...form.register('medicalCareProvided')} />
-                Houve atendimento médico
-              </label>
-              <label className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
-                <input type="checkbox" {...form.register('catIssued')} />
-                CAT emitida
-              </label>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
-                <input type="checkbox" {...form.register('leaveRequired')} />
-                Houve afastamento
-              </label>
-              <div className="space-y-1.5">
-                <Label htmlFor="leaveDays">Dias de afastamento</Label>
-                <Input
-                  id="leaveDays"
-                  type="number"
-                  min={0}
-                  disabled={!leaveRequired}
-                  {...form.register('leaveDays', { valueAsNumber: true })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="immediateActions">Ações imediatas adotadas</Label>
-              <Textarea
-                id="immediateActions"
-                placeholder="Ex: isolamento da área, primeiros socorros, comunicação à liderança..."
-                {...form.register('immediateActions')}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={createAccident.isPending}>
-                {createAccident.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                Criar e abrir gestão
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <CreateAccidentQiatDialog
+        open={isDialogOpen}
+        onOpenChange={handleCreateDialogOpenChange}
+        initialCompanyId={companyFilterId || activeCompany?.id}
+        onCreated={(accidentId) => router.push(`/dashboard/acidentes/${accidentId}`)}
+      />
 
       {canManageTemplates && (
         <>

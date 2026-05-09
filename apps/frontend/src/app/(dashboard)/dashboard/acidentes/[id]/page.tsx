@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, type UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
@@ -14,10 +14,25 @@ import {
   Printer,
   Save,
   SearchCheck,
+  ShieldPlus,
   Trash2,
+  Upload,
   Wand2,
 } from 'lucide-react'
-import { AccidentSeverity, AccidentStatus, AccidentType, Permission, Role } from '@moby/shared'
+import {
+  AccidentActivityType,
+  AccidentBodyPart,
+  AccidentCommuteSubtype,
+  AccidentEvidenceType,
+  AccidentInjuredSide,
+  AccidentSeverity,
+  AccidentStatus,
+  AccidentType,
+  AccidentTypicalSubtype,
+  AccidentWorkJourneyType,
+  Permission,
+  Role,
+} from '@moby/shared'
 
 import { Topbar } from '@/components/layout/topbar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -34,6 +49,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useAccident, useAccidentConclusionReport, useUpdateAccident } from '@/hooks/use-accidents'
@@ -44,33 +60,53 @@ import {
   useDownloadAccidentGeneratedDocument,
   useGenerateAccidentDocument,
 } from '@/hooks/use-accident-documents'
+import {
+  useAccidentEvidences,
+  useDownloadAccidentEvidence,
+  useRemoveAccidentEvidence,
+  useUploadAccidentEvidence,
+} from '@/hooks/use-accident-evidences'
 import type {
   AccidentGeneratedDocument,
   AccidentGeneratedDocumentDownloadFormat,
   AccidentTemplate,
 } from '@/lib/api/accident-documents.api'
+import type { AccidentEvidence } from '@/lib/api/accident-evidences.api'
+import {
+  ACCIDENT_ACTIVITY_TYPE_LABELS,
+  ACCIDENT_BODY_PART_LABELS,
+  ACCIDENT_COMMUTE_SUBTYPE_LABELS,
+  ACCIDENT_EVIDENCE_TYPE_LABELS,
+  ACCIDENT_INJURED_SIDE_OPTIONS,
+  ACCIDENT_INJURED_SIDE_OPTION_LABELS,
+  ACCIDENT_SEVERITY_LABELS,
+  ACCIDENT_STATUS_LABELS,
+  ACCIDENT_TYPE_LABELS,
+  ACCIDENT_TYPICAL_SUBTYPE_LABELS,
+  ACCIDENT_WORK_JOURNEY_TYPE_LABELS,
+  type AccidentInjuredSideOption,
+  calculateAge,
+  formatBodyPartSummary,
+  formatBytes,
+  formatCpf,
+  formatDateTime,
+  getQiatDeadlineStatus,
+  NOT_APPLICABLE_INJURED_SIDE,
+  toInjuredSideOption,
+  toStoredInjuredSide,
+  toDateTimeLocal,
+} from '@/lib/accident-qiat'
 import { ACCIDENT_DOCUMENT_TYPE_LABELS } from '@/lib/accident-document-constants'
+import { useEmployee } from '@/hooks/use-employees'
+import { useJobFunction } from '@/hooks/use-job-functions'
+import { useSectors } from '@/hooks/use-sectors'
 import { useAuthStore } from '@/store/auth.store'
-
-const ACCIDENT_STATUS_LABELS: Record<AccidentStatus, string> = {
-  REPORTED: 'Registrado',
-  UNDER_INVESTIGATION: 'Em investigação',
-  ACTION_PLAN_DEFINED: 'Plano de ação',
-  CLOSED: 'Encerrado',
-}
 
 const ACCIDENT_STATUS_BADGES: Record<AccidentStatus, 'warning' | 'default' | 'secondary' | 'success'> = {
   REPORTED: 'warning',
   UNDER_INVESTIGATION: 'default',
   ACTION_PLAN_DEFINED: 'secondary',
   CLOSED: 'success',
-}
-
-const ACCIDENT_SEVERITY_LABELS: Record<AccidentSeverity, string> = {
-  MINOR: 'Leve',
-  MODERATE: 'Moderado',
-  SERIOUS: 'Grave',
-  FATAL: 'Fatal',
 }
 
 const ACCIDENT_SEVERITY_BADGES: Record<AccidentSeverity, 'muted' | 'warning' | 'destructive'> = {
@@ -80,71 +116,154 @@ const ACCIDENT_SEVERITY_BADGES: Record<AccidentSeverity, 'muted' | 'warning' | '
   FATAL: 'destructive',
 }
 
-const ACCIDENT_TYPE_LABELS: Record<AccidentType, string> = {
-  TYPICAL: 'Típico',
-  COMMUTE: 'Trajeto',
-  OCCUPATIONAL_DISEASE: 'Doença ocupacional',
-  NEAR_MISS: 'Quase acidente',
-}
-
 const GENERATOR_ROLES = new Set<string>([Role.SUPER_ADMIN, Role.TENANT_ADMIN, Role.TECNICO_SST])
 const ADMIN_ROLES = new Set<string>([Role.SUPER_ADMIN, Role.TENANT_ADMIN])
 
-const accidentDetailSchema = z.object({
-  occurredAt: z.string().min(1, 'Informe a data e hora do acidente'),
-  reportedAt: z.string().min(1, 'Informe a data e hora do registro'),
-  location: z.string().trim().min(3, 'Informe o local'),
-  accidentType: z.nativeEnum(AccidentType),
-  severity: z.nativeEnum(AccidentSeverity),
-  status: z.nativeEnum(AccidentStatus),
-  description: z.string().trim().min(10, 'Descrição obrigatória'),
-  injuredBodyPart: z.string().optional(),
-  medicalCareProvided: z.boolean().default(false),
-  leaveRequired: z.boolean().default(false),
-  leaveDays: z.coerce.number().int().min(0).default(0),
-  catIssued: z.boolean().default(false),
-  catNumber: z.string().optional(),
-  witnesses: z.string().optional(),
-  immediateActions: z.string().optional(),
-  investigatorName: z.string().optional(),
-  investigationStartedAt: z.string().optional(),
-  immediateCause: z.string().optional(),
-  rootCause: z.string().optional(),
-  contributingFactors: z.string().optional(),
-  correctiveActions: z.string().optional(),
-  preventiveMeasures: z.string().optional(),
-  managerNotes: z.string().optional(),
-  recommendations: z.string().optional(),
-  conclusionSummary: z.string().optional(),
-  closureDate: z.string().optional(),
-})
+const accidentDetailSchema = z
+  .object({
+    regional: z.string().trim().min(2, 'Informe a regional'),
+    unitManagerName: z.string().trim().optional(),
+    salary: z.string().trim().optional(),
+    employeePhone: z.string().trim().optional(),
+    workSchedule: z.string().trim().optional(),
+    totalTimeInRole: z.string().trim().optional(),
+    activityType: z.nativeEnum(AccidentActivityType).optional(),
+    previousAccident: z.boolean().default(false),
+    previousAccidentDescription: z.string().trim().optional(),
+    occurredAt: z.string().min(1, 'Informe a data e hora do acidente'),
+    reportedAt: z.string().min(1, 'Informe a data e hora do registro'),
+    location: z.string().trim().min(3, 'Informe o local'),
+    occurrenceAddress: z.string().trim().optional(),
+    accidentType: z.nativeEnum(AccidentType),
+    typicalSubtypes: z.array(z.nativeEnum(AccidentTypicalSubtype)).default([]),
+    typicalSubtypeOther: z.string().trim().optional(),
+    commuteSubtypes: z.array(z.nativeEnum(AccidentCommuteSubtype)).default([]),
+    commuteSubtypeOther: z.string().trim().optional(),
+    workJourneyType: z.nativeEnum(AccidentWorkJourneyType).optional(),
+    scheduleChangeStart: z.string().optional(),
+    scheduleChangeEnd: z.string().optional(),
+    severity: z.nativeEnum(AccidentSeverity),
+    status: z.nativeEnum(AccidentStatus),
+    description: z.string().trim().min(10, 'Descrição obrigatória'),
+    injuredSide: z.enum(ACCIDENT_INJURED_SIDE_OPTIONS, {
+      errorMap: () => ({ message: 'Informe o lado atingido' }),
+    }),
+    injuredBodyParts: z.array(z.nativeEnum(AccidentBodyPart)).min(1, 'Selecione ao menos uma parte do corpo'),
+    injuredBodyPartOther: z.string().trim().optional(),
+    injuredBodyPart: z.string().optional(),
+    medicalCareProvided: z.boolean().default(false),
+    medicalCareTime: z.string().optional(),
+    leaveRequired: z.boolean().default(false),
+    leaveDays: z.coerce.number().int().min(0).default(0),
+    catIssued: z.boolean().default(false),
+    catNumber: z.string().optional(),
+    witnesses: z.string().optional(),
+    immediateActions: z.string().optional(),
+    investigatorName: z.string().optional(),
+    investigationStartedAt: z.string().optional(),
+    immediateCause: z.string().optional(),
+    rootCause: z.string().optional(),
+    contributingFactors: z.string().optional(),
+    correctiveActions: z.string().optional(),
+    preventiveMeasures: z.string().optional(),
+    managerNotes: z.string().optional(),
+    recommendations: z.string().optional(),
+    conclusionSummary: z.string().optional(),
+    closureDate: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.previousAccident && !value.previousAccidentDescription?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['previousAccidentDescription'],
+        message: 'Descreva o acidente anterior',
+      })
+    }
+
+    if (value.accidentType === AccidentType.TYPICAL && value.typicalSubtypes.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['typicalSubtypes'],
+        message: 'Selecione ao menos um subtipo típico',
+      })
+    }
+
+    if (
+      value.accidentType === AccidentType.TYPICAL &&
+      value.typicalSubtypes.includes(AccidentTypicalSubtype.OTHER) &&
+      !value.typicalSubtypeOther?.trim()
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['typicalSubtypeOther'],
+        message: 'Detalhe o subtipo típico em "Outros"',
+      })
+    }
+
+    if (value.accidentType === AccidentType.COMMUTE && value.commuteSubtypes.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['commuteSubtypes'],
+        message: 'Selecione ao menos um subtipo de trajeto',
+      })
+    }
+
+    if (
+      value.accidentType === AccidentType.COMMUTE &&
+      value.commuteSubtypes.includes(AccidentCommuteSubtype.OTHER) &&
+      !value.commuteSubtypeOther?.trim()
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['commuteSubtypeOther'],
+        message: 'Detalhe o subtipo de trajeto em "Outros"',
+      })
+    }
+
+    if (value.workJourneyType === AccidentWorkJourneyType.CHANGED_SCHEDULE) {
+      if (!value.scheduleChangeStart) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['scheduleChangeStart'],
+          message: 'Informe o horário inicial da troca',
+        })
+      }
+
+      if (!value.scheduleChangeEnd) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['scheduleChangeEnd'],
+          message: 'Informe o horário final da troca',
+        })
+      }
+    }
+
+    if (value.injuredBodyParts.includes(AccidentBodyPart.OTHER) && !value.injuredBodyPartOther?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['injuredBodyPartOther'],
+        message: 'Detalhe a parte do corpo em "Outros"',
+      })
+    }
+
+    if (value.leaveRequired && value.leaveDays < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['leaveDays'],
+        message: 'Informe a quantidade de dias de afastamento',
+      })
+    }
+
+    if (value.catIssued && !value.catNumber?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['catNumber'],
+        message: 'Informe o número da CAT',
+      })
+    }
+  })
 
 type AccidentDetailForm = z.infer<typeof accidentDetailSchema>
-
-function toDateTimeLocal(value?: string | null) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}`
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) return '—'
-  return new Date(value).toLocaleString('pt-BR')
-}
-
-function formatCpf(value: string) {
-  const digits = value.replace(/\D/g, '').slice(0, 11)
-  return digits
-    .replace(/^(\d{3})(\d)/, '$1.$2')
-    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1-$2')
-}
 
 function normalizeNullableText(value?: string) {
   const normalized = value?.trim() ?? ''
@@ -182,26 +301,57 @@ export default function AcidenteDetalhePage() {
   const updateAccident = useUpdateAccident()
   const templatesQuery = useAccidentTemplates(accidentQuery.data?.companyId)
   const generatedDocumentsQuery = useAccidentGeneratedDocuments(accidentId)
+  const accidentEvidencesQuery = useAccidentEvidences(accidentId)
   const generateDocument = useGenerateAccidentDocument()
   const downloadDocument = useDownloadAccidentGeneratedDocument()
   const deleteDocument = useDeleteAccidentGeneratedDocument(accidentId)
+  const uploadEvidence = useUploadAccidentEvidence(accidentId)
+  const downloadEvidence = useDownloadAccidentEvidence(accidentId)
+  const removeEvidence = useRemoveAccidentEvidence(accidentId)
   const [generatingTemplateId, setGeneratingTemplateId] = useState<string | null>(null)
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [documentToDelete, setDocumentToDelete] = useState<AccidentGeneratedDocument | null>(null)
+  const [evidenceType, setEvidenceType] = useState<AccidentEvidenceType>(AccidentEvidenceType.INJURY_PHOTO)
+  const [evidenceNotes, setEvidenceNotes] = useState('')
+  const [selectedEvidenceFiles, setSelectedEvidenceFiles] = useState<File[]>([])
+  const [removingEvidenceId, setRemovingEvidenceId] = useState<string | null>(null)
+  const [downloadingEvidenceId, setDownloadingEvidenceId] = useState<string | null>(null)
+  const [injuredBodyPartSlots, setInjuredBodyPartSlots] = useState(1)
 
   const form = useForm<AccidentDetailForm>({
     resolver: zodResolver(accidentDetailSchema),
     defaultValues: {
+      regional: '',
+      unitManagerName: '',
+      salary: '',
+      employeePhone: '',
+      workSchedule: '',
+      totalTimeInRole: '',
+      activityType: undefined,
+      previousAccident: false,
+      previousAccidentDescription: '',
       occurredAt: '',
       reportedAt: '',
       location: '',
+      occurrenceAddress: '',
       accidentType: AccidentType.TYPICAL,
+      typicalSubtypes: [],
+      typicalSubtypeOther: '',
+      commuteSubtypes: [],
+      commuteSubtypeOther: '',
+      workJourneyType: undefined,
+      scheduleChangeStart: '',
+      scheduleChangeEnd: '',
       severity: AccidentSeverity.MODERATE,
       status: AccidentStatus.REPORTED,
       description: '',
+      injuredSide: NOT_APPLICABLE_INJURED_SIDE,
+      injuredBodyParts: [],
+      injuredBodyPartOther: '',
       injuredBodyPart: '',
       medicalCareProvided: false,
+      medicalCareTime: '',
       leaveRequired: false,
       leaveDays: 0,
       catIssued: false,
@@ -227,15 +377,36 @@ export default function AcidenteDetalhePage() {
     if (!accident) return
 
     form.reset({
+      regional: accident.regional ?? '',
+      unitManagerName: accident.unitManagerName ?? '',
+      salary: accident.salary ?? '',
+      employeePhone: accident.employeePhone ?? '',
+      workSchedule: accident.workSchedule ?? '',
+      totalTimeInRole: accident.totalTimeInRole ?? '',
+      activityType: accident.activityType ?? undefined,
+      previousAccident: accident.previousAccident,
+      previousAccidentDescription: accident.previousAccidentDescription ?? '',
       occurredAt: toDateTimeLocal(accident.occurredAt),
       reportedAt: toDateTimeLocal(accident.reportedAt),
       location: accident.location,
+      occurrenceAddress: accident.occurrenceAddress ?? '',
       accidentType: accident.accidentType,
+      typicalSubtypes: accident.typicalSubtypes,
+      typicalSubtypeOther: accident.typicalSubtypeOther ?? '',
+      commuteSubtypes: accident.commuteSubtypes,
+      commuteSubtypeOther: accident.commuteSubtypeOther ?? '',
+      workJourneyType: accident.workJourneyType ?? undefined,
+      scheduleChangeStart: accident.scheduleChangeStart ?? '',
+      scheduleChangeEnd: accident.scheduleChangeEnd ?? '',
       severity: accident.severity,
       status: accident.status,
       description: accident.description,
+      injuredSide: toInjuredSideOption(accident.injuredSide),
+      injuredBodyParts: accident.injuredBodyParts,
+      injuredBodyPartOther: accident.injuredBodyPartOther ?? '',
       injuredBodyPart: accident.injuredBodyPart ?? '',
       medicalCareProvided: accident.medicalCareProvided,
+      medicalCareTime: accident.medicalCareTime ?? '',
       leaveRequired: accident.leaveRequired,
       leaveDays: accident.leaveDays,
       catIssued: accident.catIssued,
@@ -254,26 +425,76 @@ export default function AcidenteDetalhePage() {
       conclusionSummary: accident.conclusionSummary ?? '',
       closureDate: toDateTimeLocal(accident.closureDate),
     })
+    setInjuredBodyPartSlots(Math.max(accident.injuredBodyParts.length, 1))
   }, [accidentQuery.data, form])
 
   const leaveRequired = form.watch('leaveRequired')
   const catIssued = form.watch('catIssued')
   const selectedStatus = form.watch('status')
+  const accidentType = form.watch('accidentType')
+  const previousAccident = form.watch('previousAccident')
+  const workJourneyType = form.watch('workJourneyType')
+  const injuredBodyParts = form.watch('injuredBodyParts')
+  const deadlineStatus = getQiatDeadlineStatus(form.watch('occurredAt'), form.watch('reportedAt'))
+  const employeeQuery = useEmployee(accidentQuery.data?.employeeId)
+  const jobFunctionQuery = useJobFunction(employeeQuery.data?.jobFunctionId)
+  const sectorsQuery = useSectors({
+    page: 1,
+    perPage: 100,
+    unitId: employeeQuery.data?.unitId || accidentQuery.data?.unitId || undefined,
+  })
 
   async function handleSave(values: AccidentDetailForm) {
     if (!accidentId) return
 
     await updateAccident.mutateAsync({
       id: accidentId,
+      regional: values.regional,
+      unitManagerName: normalizeNullableText(values.unitManagerName),
+      salary: normalizeNullableText(values.salary),
+      employeePhone: normalizeNullableText(values.employeePhone),
+      workSchedule: normalizeNullableText(values.workSchedule),
+      totalTimeInRole: normalizeNullableText(values.totalTimeInRole),
+      activityType: values.activityType ?? null,
+      previousAccident: values.previousAccident,
+      previousAccidentDescription: values.previousAccident
+        ? normalizeNullableText(values.previousAccidentDescription)
+        : null,
       occurredAt: values.occurredAt,
       reportedAt: values.reportedAt,
       location: values.location,
+      occurrenceAddress: normalizeNullableText(values.occurrenceAddress),
       accidentType: values.accidentType,
+      typicalSubtypes: values.accidentType === AccidentType.TYPICAL ? values.typicalSubtypes : [],
+      typicalSubtypeOther: values.accidentType === AccidentType.TYPICAL
+        ? normalizeNullableText(values.typicalSubtypeOther)
+        : null,
+      commuteSubtypes: values.accidentType === AccidentType.COMMUTE ? values.commuteSubtypes : [],
+      commuteSubtypeOther: values.accidentType === AccidentType.COMMUTE
+        ? normalizeNullableText(values.commuteSubtypeOther)
+        : null,
+      workJourneyType: values.workJourneyType ?? null,
+      scheduleChangeStart: values.workJourneyType === AccidentWorkJourneyType.CHANGED_SCHEDULE
+        ? normalizeNullableText(values.scheduleChangeStart)
+        : null,
+      scheduleChangeEnd: values.workJourneyType === AccidentWorkJourneyType.CHANGED_SCHEDULE
+        ? normalizeNullableText(values.scheduleChangeEnd)
+        : null,
       severity: values.severity,
       status: values.status,
       description: values.description,
-      injuredBodyPart: normalizeNullableText(values.injuredBodyPart),
+      injuredSide: toStoredInjuredSide(values.injuredSide),
+      injuredBodyParts: values.injuredBodyParts,
+      injuredBodyPartOther: values.injuredBodyParts.includes(AccidentBodyPart.OTHER)
+        ? normalizeNullableText(values.injuredBodyPartOther)
+        : null,
+      injuredBodyPart: formatBodyPartSummary(
+        values.injuredBodyParts,
+        values.injuredBodyPartOther,
+        toStoredInjuredSide(values.injuredSide),
+      ) || normalizeNullableText(values.injuredBodyPart),
       medicalCareProvided: values.medicalCareProvided,
+      medicalCareTime: values.medicalCareProvided ? normalizeNullableText(values.medicalCareTime) : null,
       leaveRequired: values.leaveRequired,
       leaveDays: values.leaveRequired ? values.leaveDays : 0,
       catIssued: values.catIssued,
@@ -294,6 +515,41 @@ export default function AcidenteDetalhePage() {
         ? normalizeNullableDateTime(values.closureDate)
         : null,
     })
+  }
+
+  function updateInjuredBodyPart(index: number, value: string) {
+    const current = [...(form.getValues('injuredBodyParts') ?? [])]
+
+    if (!value) {
+      if (index < current.length) current.splice(index, 1)
+    } else if (index < current.length) {
+      current[index] = value as AccidentBodyPart
+    } else {
+      current.push(value as AccidentBodyPart)
+    }
+
+    form.setValue('injuredBodyParts', current, { shouldDirty: true, shouldValidate: true })
+
+    if (!current.includes(AccidentBodyPart.OTHER)) {
+      form.setValue('injuredBodyPartOther', '', { shouldDirty: true, shouldValidate: true })
+    }
+  }
+
+  function addInjuredBodyPartSlot() {
+    setInjuredBodyPartSlots((current) => current + 1)
+  }
+
+  function removeInjuredBodyPartSlot(index: number) {
+    const current = [...(form.getValues('injuredBodyParts') ?? [])]
+    if (index < current.length) {
+      current.splice(index, 1)
+      form.setValue('injuredBodyParts', current, { shouldDirty: true, shouldValidate: true })
+      if (!current.includes(AccidentBodyPart.OTHER)) {
+        form.setValue('injuredBodyPartOther', '', { shouldDirty: true, shouldValidate: true })
+      }
+    }
+
+    setInjuredBodyPartSlots((currentSlots) => Math.max(1, Math.max(current.length, currentSlots - 1)))
   }
 
   function printReport() {
@@ -375,6 +631,9 @@ export default function AcidenteDetalhePage() {
   const accident = accidentQuery.data
   const activeTemplates = (templatesQuery.data ?? []).filter((template) => template.isActive)
   const generatedDocuments = generatedDocumentsQuery.data ?? []
+  const evidences = accidentEvidencesQuery.data ?? []
+  const employee = employeeQuery.data
+  const sector = (sectorsQuery.data?.data ?? []).find((item) => item.id === employee?.sectorId)
 
   async function handleGenerateDocument(template: AccidentTemplate) {
     if (!accident) return
@@ -414,6 +673,39 @@ export default function AcidenteDetalhePage() {
       setDocumentToDelete(null)
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function handleUploadEvidence() {
+    if (!accidentId || selectedEvidenceFiles.length === 0) return
+
+    for (const file of selectedEvidenceFiles) {
+      await uploadEvidence.mutateAsync({
+        evidenceType,
+        notes: evidenceNotes.trim() || undefined,
+        file,
+      })
+    }
+
+    setSelectedEvidenceFiles([])
+    setEvidenceNotes('')
+  }
+
+  async function handleDownloadEvidence(evidence: AccidentEvidence) {
+    setDownloadingEvidenceId(evidence.id)
+    try {
+      await downloadEvidence.mutateAsync(evidence)
+    } finally {
+      setDownloadingEvidenceId(null)
+    }
+  }
+
+  async function handleRemoveEvidence(evidenceId: string) {
+    setRemovingEvidenceId(evidenceId)
+    try {
+      await removeEvidence.mutateAsync(evidenceId)
+    } finally {
+      setRemovingEvidenceId(null)
     }
   }
 
@@ -558,8 +850,9 @@ export default function AcidenteDetalhePage() {
             <form className="space-y-4" onSubmit={form.handleSubmit(handleSave)}>
               <Tabs defaultValue="registro" className="w-full">
                 <TabsList>
-                  <TabsTrigger value="registro">Registro</TabsTrigger>
+                  <TabsTrigger value="registro">QIAT</TabsTrigger>
                   <TabsTrigger value="investigacao">Investigação</TabsTrigger>
+                  <TabsTrigger value="evidencias">Evidências</TabsTrigger>
                   <TabsTrigger value="relatorio">Relatório</TabsTrigger>
                 </TabsList>
 
@@ -567,11 +860,63 @@ export default function AcidenteDetalhePage() {
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="flex items-center gap-2 text-base">
-                        <AlertTriangle className="h-4 w-4 text-primary" />
-                        Dados do registro
+                        <ShieldPlus className="h-4 w-4 text-primary" />
+                        QIAT — Questionário de Investigação
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      <div className="grid gap-4 rounded-2xl border border-border bg-muted/20 p-4 md:grid-cols-3">
+                        <DetailItem label="Nome completo" value={accident.employeeName} />
+                        <DetailItem label="CPF" value={formatCpf(accident.employeeCpf)} />
+                        <DetailItem
+                          label="Idade"
+                          value={calculateAge(employee?.birthDate) !== null ? `${calculateAge(employee?.birthDate)} anos` : '—'}
+                        />
+                        <DetailItem label="Telefone com DDD" value={accident.employeePhone ?? '—'} />
+                        <DetailItem
+                          label="Data de admissão"
+                          value={employee?.admissionDate ? new Date(employee.admissionDate).toLocaleDateString('pt-BR') : '—'}
+                        />
+                        <DetailItem label="Matrícula" value={accident.employeeRegistration ?? '—'} />
+                        <DetailItem label="Unidade / Contrato" value={`${accident.unitName} · ${accident.companyName ?? '—'}`} />
+                        <DetailItem label="Unidade do colaborador" value={accident.unitName} />
+                        <DetailItem label="Área / Setor" value={sector?.name ?? '—'} />
+                        <DetailItem label="Função" value={jobFunctionQuery.data?.name ?? accident.jobFunctionName ?? '—'} />
+                        <DetailItem label="Código do acidente" value={accident.code} />
+                        <DetailItem label="Prazo do QIAT" value={deadlineStatus ? `${deadlineStatus.isLate ? 'Fora do prazo' : 'Dentro do prazo'}` : '—'} />
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <Field>
+                          <Label htmlFor="regional">Regional *</Label>
+                          <Input id="regional" {...form.register('regional')} />
+                          <FieldError message={form.formState.errors.regional?.message} />
+                        </Field>
+                        <Field>
+                          <Label htmlFor="unitManagerName">Gestor(a) da unidade</Label>
+                          <Input id="unitManagerName" {...form.register('unitManagerName')} />
+                        </Field>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <Field>
+                          <Label htmlFor="salary">Salário</Label>
+                          <Input id="salary" {...form.register('salary')} />
+                        </Field>
+                        <Field>
+                          <Label htmlFor="employeePhone">Telefone com DDD</Label>
+                          <Input id="employeePhone" placeholder="Ex: (11) 99999-9999" {...form.register('employeePhone')} />
+                        </Field>
+                        <Field>
+                          <Label htmlFor="workSchedule">Horário de trabalho</Label>
+                          <Input id="workSchedule" {...form.register('workSchedule')} />
+                        </Field>
+                        <Field>
+                          <Label htmlFor="totalTimeInRole">Tempo total na função</Label>
+                          <Input id="totalTimeInRole" {...form.register('totalTimeInRole')} />
+                        </Field>
+                      </div>
+
                       <div className="grid gap-3 md:grid-cols-2">
                         <Field>
                           <Label htmlFor="occurredAt">Data e hora do acidente</Label>
@@ -583,14 +928,25 @@ export default function AcidenteDetalhePage() {
                         </Field>
                       </div>
 
-                      <div className="grid gap-3 md:grid-cols-3">
+                      {deadlineStatus && (
+                        <Alert variant={deadlineStatus.isLate ? 'destructive' : 'default'}>
+                          <AlertDescription>
+                            {deadlineStatus.isLate
+                              ? `Registro fora da janela recomendada. Limite calculado: ${formatDateTime(deadlineStatus.deadline.toISOString())}.`
+                              : `Registro dentro do prazo. Limite calculado: ${formatDateTime(deadlineStatus.deadline.toISOString())}.`}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      <div className="grid gap-3 md:grid-cols-2">
                         <Field className="md:col-span-2">
                           <Label htmlFor="location">Local</Label>
                           <Input id="location" {...form.register('location')} />
+                          <FieldError message={form.formState.errors.location?.message} />
                         </Field>
                         <Field>
-                          <Label htmlFor="injuredBodyPart">Parte atingida</Label>
-                          <Input id="injuredBodyPart" {...form.register('injuredBodyPart')} />
+                          <Label htmlFor="occurrenceAddress">Endereço completo da ocorrência</Label>
+                          <Input id="occurrenceAddress" {...form.register('occurrenceAddress')} />
                         </Field>
                       </div>
 
@@ -633,27 +989,232 @@ export default function AcidenteDetalhePage() {
                         </Field>
                       </div>
 
-                      <Field>
-                        <Label htmlFor="description">Descrição do acidente</Label>
-                        <Textarea id="description" {...form.register('description')} />
-                      </Field>
-
                       <div className="grid gap-3 md:grid-cols-2">
-                        <label className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
-                          <input type="checkbox" {...form.register('medicalCareProvided')} />
-                          Houve atendimento médico
-                        </label>
-                        <label className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
-                          <input type="checkbox" {...form.register('catIssued')} />
-                          CAT emitida
-                        </label>
+                        <Field>
+                          <Label htmlFor="activityType">Tipo de atividade</Label>
+                          <select
+                            id="activityType"
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                            value={form.watch('activityType') ?? ''}
+                            onChange={(event) => {
+                              form.setValue(
+                                'activityType',
+                                event.target.value ? event.target.value as AccidentActivityType : undefined,
+                              )
+                            }}
+                          >
+                            <option value="">Selecione</option>
+                            {Object.values(AccidentActivityType).map((value) => (
+                              <option key={value} value={value}>{ACCIDENT_ACTIVITY_TYPE_LABELS[value]}</option>
+                            ))}
+                          </select>
+                        </Field>
+                        <BooleanChoiceField
+                          label="Já sofreu acidente anteriormente?"
+                          value={previousAccident}
+                          onChange={(value) => form.setValue('previousAccident', value, { shouldValidate: true })}
+                        />
                       </div>
 
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <label className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
-                          <input type="checkbox" {...form.register('leaveRequired')} />
-                          Houve afastamento
-                        </label>
+                      {previousAccident && (
+                        <Field>
+                          <Label htmlFor="previousAccidentDescription">Descrição do acidente anterior *</Label>
+                          <Textarea id="previousAccidentDescription" {...form.register('previousAccidentDescription')} />
+                          <FieldError message={form.formState.errors.previousAccidentDescription?.message} />
+                        </Field>
+                      )}
+
+                      {accidentType === AccidentType.TYPICAL && (
+                        <Field>
+                          <Label>Subtipo Típico *</Label>
+                          <MultiSelectGrid
+                            values={form.watch('typicalSubtypes')}
+                            options={Object.values(AccidentTypicalSubtype).map((value) => ({
+                              value,
+                              label: ACCIDENT_TYPICAL_SUBTYPE_LABELS[value],
+                            }))}
+                            onToggle={(value) => toggleArrayValue(form, 'typicalSubtypes', value)}
+                          />
+                          <FieldError message={form.formState.errors.typicalSubtypes?.message as string | undefined} />
+                          {form.watch('typicalSubtypes').includes(AccidentTypicalSubtype.OTHER) && (
+                            <div className="mt-3">
+                              <Input placeholder="Detalhe o subtipo típico" {...form.register('typicalSubtypeOther')} />
+                              <FieldError message={form.formState.errors.typicalSubtypeOther?.message} />
+                            </div>
+                          )}
+                        </Field>
+                      )}
+
+                      {accidentType === AccidentType.COMMUTE && (
+                        <Field>
+                          <Label>Subtipo Trajeto *</Label>
+                          <MultiSelectGrid
+                            values={form.watch('commuteSubtypes')}
+                            options={Object.values(AccidentCommuteSubtype).map((value) => ({
+                              value,
+                              label: ACCIDENT_COMMUTE_SUBTYPE_LABELS[value],
+                            }))}
+                            onToggle={(value) => toggleArrayValue(form, 'commuteSubtypes', value)}
+                          />
+                          <FieldError message={form.formState.errors.commuteSubtypes?.message as string | undefined} />
+                          {form.watch('commuteSubtypes').includes(AccidentCommuteSubtype.OTHER) && (
+                            <div className="mt-3">
+                              <Input placeholder="Detalhe o subtipo de trajeto" {...form.register('commuteSubtypeOther')} />
+                              <FieldError message={form.formState.errors.commuteSubtypeOther?.message} />
+                            </div>
+                          )}
+                        </Field>
+                      )}
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <Field className="md:col-span-2">
+                          <Label htmlFor="workJourneyType">Jornada</Label>
+                          <select
+                            id="workJourneyType"
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                            value={workJourneyType ?? ''}
+                            onChange={(event) => {
+                              form.setValue(
+                                'workJourneyType',
+                                event.target.value ? event.target.value as AccidentWorkJourneyType : undefined,
+                                { shouldValidate: true },
+                              )
+                            }}
+                          >
+                            <option value="">Selecione</option>
+                            {Object.values(AccidentWorkJourneyType).map((value) => (
+                              <option key={value} value={value}>{ACCIDENT_WORK_JOURNEY_TYPE_LABELS[value]}</option>
+                            ))}
+                          </select>
+                        </Field>
+                        {workJourneyType === AccidentWorkJourneyType.CHANGED_SCHEDULE && (
+                          <>
+                            <Field>
+                              <Label htmlFor="scheduleChangeStart">De *</Label>
+                              <Input id="scheduleChangeStart" type="time" {...form.register('scheduleChangeStart')} />
+                              <FieldError message={form.formState.errors.scheduleChangeStart?.message} />
+                            </Field>
+                            <Field>
+                              <Label htmlFor="scheduleChangeEnd">Até *</Label>
+                              <Input id="scheduleChangeEnd" type="time" {...form.register('scheduleChangeEnd')} />
+                              <FieldError message={form.formState.errors.scheduleChangeEnd?.message} />
+                            </Field>
+                          </>
+                        )}
+                      </div>
+
+                      <Field>
+                        <Label htmlFor="injuredSide">Lado atingido *</Label>
+                        <select
+                          id="injuredSide"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                          value={form.watch('injuredSide')}
+                          onChange={(event) => {
+                            form.setValue('injuredSide', event.target.value as AccidentInjuredSideOption, {
+                              shouldValidate: true,
+                            })
+                          }}
+                        >
+                          {ACCIDENT_INJURED_SIDE_OPTIONS.map((value) => (
+                            <option key={value} value={value}>
+                              {ACCIDENT_INJURED_SIDE_OPTION_LABELS[value]}
+                            </option>
+                          ))}
+                        </select>
+                        <FieldError message={form.formState.errors.injuredSide?.message} />
+                      </Field>
+
+                      <Field>
+                        <Label htmlFor="injuredBodyParts">Parte do corpo atingida *</Label>
+                        <div className="space-y-2">
+                          {Array.from({ length: Math.max(injuredBodyPartSlots, injuredBodyParts.length || 1) }).map((_, index) => {
+                            const selectedValue = injuredBodyParts[index] ?? ''
+
+                            return (
+                              <div key={`injured-body-part-${index}`} className="flex items-start gap-2">
+                                <select
+                                  id={index === 0 ? 'injuredBodyParts' : undefined}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                  value={selectedValue}
+                                  onChange={(event) => updateInjuredBodyPart(index, event.target.value)}
+                                >
+                                  <option value="">Selecione a parte do corpo</option>
+                                  {Object.values(AccidentBodyPart).map((value) => (
+                                    <option
+                                      key={value}
+                                      value={value}
+                                      disabled={injuredBodyParts.some((part, partIndex) => part === value && partIndex !== index)}
+                                    >
+                                      {ACCIDENT_BODY_PART_LABELS[value]}
+                                    </option>
+                                  ))}
+                                </select>
+                                {(injuredBodyPartSlots > 1 || injuredBodyParts.length > 1) && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-10 w-10 shrink-0"
+                                    onClick={() => removeInjuredBodyPartSlot(index)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            )
+                          })}
+                          <Button type="button" variant="outline" size="sm" onClick={addInjuredBodyPartSlot}>
+                            Adicionar outra parte
+                          </Button>
+                        </div>
+                        <FieldError message={form.formState.errors.injuredBodyParts?.message as string | undefined} />
+                        {injuredBodyParts.includes(AccidentBodyPart.OTHER) && (
+                          <div className="mt-3">
+                            <Input placeholder="Detalhe a parte do corpo em outros" {...form.register('injuredBodyPartOther')} />
+                            <FieldError message={form.formState.errors.injuredBodyPartOther?.message} />
+                          </div>
+                        )}
+                      </Field>
+
+                      <Alert>
+                        <AlertDescription>
+                          Resumo da lesão: {formatBodyPartSummary(
+                            injuredBodyParts,
+                            form.watch('injuredBodyPartOther'),
+                            toStoredInjuredSide(form.watch('injuredSide')),
+                          ) || 'Selecione as partes do corpo atingidas'}
+                        </AlertDescription>
+                      </Alert>
+
+                      <Field>
+                        <Label htmlFor="description">Descrição detalhada da ocorrência *</Label>
+                        <Textarea id="description" {...form.register('description')} />
+                        <FieldError message={form.formState.errors.description?.message} />
+                      </Field>
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <BooleanChoiceField
+                          label="Houve atendimento médico"
+                          value={form.watch('medicalCareProvided')}
+                          onChange={(value) => form.setValue('medicalCareProvided', value)}
+                        />
+                        <Field>
+                          <Label htmlFor="medicalCareTime">Hora do atendimento médico</Label>
+                          <Input id="medicalCareTime" type="time" {...form.register('medicalCareTime')} />
+                        </Field>
+                        <BooleanChoiceField
+                          label="CAT emitida"
+                          value={catIssued}
+                          onChange={(value) => form.setValue('catIssued', value, { shouldValidate: true })}
+                        />
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <BooleanChoiceField
+                          label="Teve afastamento"
+                          value={leaveRequired}
+                          onChange={(value) => form.setValue('leaveRequired', value, { shouldValidate: true })}
+                        />
                         <Field>
                           <Label htmlFor="leaveDays">Dias de afastamento</Label>
                           <Input
@@ -663,14 +1224,16 @@ export default function AcidenteDetalhePage() {
                             disabled={!leaveRequired}
                             {...form.register('leaveDays', { valueAsNumber: true })}
                           />
+                          <FieldError message={form.formState.errors.leaveDays?.message} />
+                        </Field>
+                        <Field>
+                          <Label htmlFor="catNumber">Número CAT</Label>
+                          <Input id="catNumber" disabled={!catIssued} {...form.register('catNumber')} />
+                          <FieldError message={form.formState.errors.catNumber?.message} />
                         </Field>
                       </div>
 
                       <div className="grid gap-3 md:grid-cols-2">
-                        <Field>
-                          <Label htmlFor="catNumber">Número CAT</Label>
-                          <Input id="catNumber" disabled={!catIssued} {...form.register('catNumber')} />
-                        </Field>
                         <Field>
                           <Label htmlFor="closureDate">Data de encerramento</Label>
                           <Input
@@ -679,6 +1242,10 @@ export default function AcidenteDetalhePage() {
                             disabled={selectedStatus !== AccidentStatus.CLOSED}
                             {...form.register('closureDate')}
                           />
+                        </Field>
+                        <Field>
+                          <Label htmlFor="witnesses">Testemunhas</Label>
+                          <Textarea id="witnesses" {...form.register('witnesses')} />
                         </Field>
                       </div>
 
@@ -771,6 +1338,119 @@ export default function AcidenteDetalhePage() {
                           <Save className="mr-1.5 h-3.5 w-3.5" />
                           Salvar investigação
                         </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="evidencias" className="space-y-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Upload className="h-4 w-4 text-primary" />
+                        Evidências do QIAT
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <Alert>
+                        <AlertDescription>
+                          Quando aplicável, anexe ao menos atestado médico com CID, foto da lesão e boletim de ocorrência para acidentes de trajeto.
+                        </AlertDescription>
+                      </Alert>
+
+                      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                        <Field>
+                          <Label htmlFor="evidenceType">Tipo de evidência</Label>
+                          <select
+                            id="evidenceType"
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                            value={evidenceType}
+                            onChange={(event) => setEvidenceType(event.target.value as AccidentEvidenceType)}
+                          >
+                            {Object.values(AccidentEvidenceType).map((value) => (
+                              <option key={value} value={value}>{ACCIDENT_EVIDENCE_TYPE_LABELS[value]}</option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field>
+                          <Label htmlFor="evidenceNotes">Observação</Label>
+                          <Input
+                            id="evidenceNotes"
+                            value={evidenceNotes}
+                            onChange={(event) => setEvidenceNotes(event.target.value)}
+                            placeholder="Comentário opcional"
+                          />
+                        </Field>
+                        <Field>
+                          <Label htmlFor="evidenceFiles">Arquivos</Label>
+                          <Input
+                            id="evidenceFiles"
+                            type="file"
+                            accept=".pdf,image/png,image/jpeg,image/jpg,image/webp"
+                            multiple
+                            onChange={(event) => setSelectedEvidenceFiles(Array.from(event.target.files ?? []))}
+                          />
+                        </Field>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          onClick={handleUploadEvidence}
+                          disabled={selectedEvidenceFiles.length === 0 || uploadEvidence.isPending}
+                        >
+                          {uploadEvidence.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                          Enviar evidências
+                        </Button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {accidentEvidencesQuery.isLoading && (
+                          <div className="rounded-xl border border-border px-4 py-6 text-sm text-muted-foreground">
+                            Carregando evidências...
+                          </div>
+                        )}
+                        {!accidentEvidencesQuery.isLoading && evidences.length === 0 && (
+                          <div className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+                            Nenhuma evidência anexada para este acidente.
+                          </div>
+                        )}
+                        {evidences.map((evidence) => (
+                          <div key={evidence.id} className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{evidence.fileName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {ACCIDENT_EVIDENCE_TYPE_LABELS[evidence.evidenceType]} · {formatBytes(evidence.fileSize)}
+                                {evidence.notes ? ` · ${evidence.notes}` : ''}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadEvidence(evidence)}
+                                disabled={downloadingEvidenceId === evidence.id}
+                              >
+                                {downloadingEvidenceId === evidence.id
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <Download className="h-3.5 w-3.5" />}
+                                Baixar
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveEvidence(evidence.id)}
+                                disabled={removingEvidenceId === evidence.id}
+                              >
+                                {removingEvidenceId === evidence.id
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <Trash2 className="h-3.5 w-3.5 text-destructive" />}
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </CardContent>
                   </Card>
@@ -1026,6 +1706,73 @@ function Field({
   className?: string
 }) {
   return <div className={className ? `space-y-1.5 ${className}` : 'space-y-1.5'}>{children}</div>
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return <p className="text-xs text-destructive">{message}</p>
+}
+
+function BooleanChoiceField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: boolean
+  onChange: (value: boolean) => void
+}) {
+  return (
+    <div className="flex h-9 items-center justify-between rounded-md border border-input bg-background px-3 shadow-sm">
+      <p className="truncate pr-3 text-sm font-medium leading-none text-foreground">{label}</p>
+      <Switch checked={value} onCheckedChange={onChange} />
+    </div>
+  )
+}
+
+function MultiSelectGrid<T extends string>({
+  values,
+  options,
+  onToggle,
+}: {
+  values: T[]
+  options: Array<{ value: T; label: string }>
+  onToggle: (value: T) => void
+}) {
+  return (
+    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+      {options.map((option) => {
+        const checked = values.includes(option.value)
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onToggle(option.value)}
+            className={`flex min-h-9 items-center rounded-md border px-4 py-2 text-left text-sm transition ${
+              checked
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-input bg-background text-foreground hover:border-primary/40'
+            }`}
+          >
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function toggleArrayValue<TField extends Record<string, unknown>, TValue extends string>(
+  form: UseFormReturn<TField>,
+  field: keyof TField,
+  value: TValue,
+) {
+  const current = ((form.getValues(field as any) as TValue[] | undefined) ?? [])
+  const next = current.includes(value)
+    ? current.filter((item) => item !== value)
+    : [...current, value]
+
+  form.setValue(field as any, next as any, { shouldDirty: true, shouldValidate: true })
 }
 
 function InfoCard({

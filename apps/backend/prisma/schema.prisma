@@ -128,6 +128,84 @@ enum AccidentType {
   NEAR_MISS
 }
 
+enum AccidentActivityType {
+  HABITUAL
+  EVENTUAL
+  NEW
+  FUNCTION_REPLACEMENT
+}
+
+enum AccidentTypicalSubtype {
+  BATIDA_CONTRA
+  QUEDA_MESMO_NIVEL
+  QUEDA_NIVEL_DIFERENTE
+  PERFUROCORTANTE
+  PRENSAMENTO
+  AGRESSAO
+  QUEIMADURA
+  CONTATO_MATERIAL_BIOLOGICO
+  CONTATO_PRODUTO_QUIMICO
+  OTHER
+}
+
+enum AccidentCommuteSubtype {
+  BATIDA_CONTRA
+  COLISAO_VEICULOS
+  ATROPELAMENTO
+  QUEDA_NIVEL
+  ASSALTO
+  AGRESSAO
+  ATAQUE_ANIMAIS
+  OTHER
+}
+
+enum AccidentWorkJourneyType {
+  REGULAR_HOURS
+  OVERTIME
+  CHANGED_SCHEDULE
+}
+
+enum AccidentInjuredSide {
+  LEFT
+  RIGHT
+  BOTH
+}
+
+enum AccidentBodyPart {
+  HEAD
+  FACE
+  EYE
+  NOSE
+  MOUTH
+  NECK
+  SHOULDER
+  ARM
+  ELBOW
+  WRIST
+  HAND
+  FINGER
+  THORAX
+  ABDOMEN
+  BACK
+  COCCYX
+  THIGH
+  LEG
+  KNEE
+  ANKLE
+  FOOT
+  OTHER
+}
+
+enum AccidentEvidenceType {
+  INJURY_PHOTO
+  PROCEDURE_EXECUTED
+  PPE_CORRECT_USE
+  POLICE_REPORT
+  MEDICAL_CERTIFICATE_WITH_CID
+  MEDICAL_ATTENDANCE_DECLARATION
+  OTHER
+}
+
 enum GeneratedDocumentStatus {
   ACTIVE
   DELETED
@@ -161,6 +239,7 @@ model Tenant {
   generatedDocuments GeneratedDocument[]
   accidentTemplates  AccidentTemplate[]
   accidentGeneratedDocuments AccidentGeneratedDocument[]
+  accidentEvidences  AccidentEvidence[]
   documentAuditLogs  DocumentAuditLog[]
   employees          Employee[]
   epiItems           EpiItem[]
@@ -208,6 +287,7 @@ model Company {
   accidents     Accident[]
   accidentTemplates AccidentTemplate[]
   accidentGeneratedDocuments AccidentGeneratedDocument[]
+  accidentEvidences AccidentEvidence[]
   employees     Employee[]
   epiItems      EpiItem[]
   epiDeliveries EpiDelivery[]
@@ -413,15 +493,36 @@ model Accident {
   employeeId            String           @map("employee_id")
   jobFunctionId         String?          @map("job_function_id")
   code                  String           @unique
+  regional              String?
+  unitManagerName       String?          @map("unit_manager_name")
+  salary                String?
+  employeePhone         String?          @map("employee_phone")
+  workSchedule          String?          @map("work_schedule")
+  totalTimeInRole       String?          @map("total_time_in_role")
+  activityType          AccidentActivityType? @map("activity_type")
+  previousAccident      Boolean          @default(false) @map("previous_accident")
+  previousAccidentDescription String?    @map("previous_accident_description")
   occurredAt            DateTime         @map("occurred_at")
   reportedAt            DateTime         @default(now()) @map("reported_at")
   location              String
+  occurrenceAddress     String?          @map("occurrence_address")
   accidentType          AccidentType     @map("accident_type")
+  typicalSubtypes       AccidentTypicalSubtype[] @default([]) @map("typical_subtypes")
+  typicalSubtypeOther   String?          @map("typical_subtype_other")
+  commuteSubtypes       AccidentCommuteSubtype[] @default([]) @map("commute_subtypes")
+  commuteSubtypeOther   String?          @map("commute_subtype_other")
+  workJourneyType       AccidentWorkJourneyType? @map("work_journey_type")
+  scheduleChangeStart   String?          @map("schedule_change_start")
+  scheduleChangeEnd     String?          @map("schedule_change_end")
   severity              AccidentSeverity
   status                AccidentStatus   @default(REPORTED)
   description           String
+  injuredSide           AccidentInjuredSide? @map("injured_side")
+  injuredBodyParts      AccidentBodyPart[] @default([]) @map("injured_body_parts")
+  injuredBodyPartOther  String?          @map("injured_body_part_other")
   injuredBodyPart       String?          @map("injured_body_part")
   medicalCareProvided   Boolean          @default(false) @map("medical_care_provided")
+  medicalCareTime       String?          @map("medical_care_time")
   leaveRequired         Boolean          @default(false) @map("leave_required")
   leaveDays             Int              @default(0) @map("leave_days")
   catIssued             Boolean          @default(false) @map("cat_issued")
@@ -451,6 +552,7 @@ model Accident {
   employee    Employee     @relation(fields: [employeeId], references: [id])
   jobFunction JobFunction? @relation(fields: [jobFunctionId], references: [id])
   generatedDocuments AccidentGeneratedDocument[]
+  evidences   AccidentEvidence[]
 
   @@index([tenantId])
   @@index([tenantId, companyId])
@@ -467,7 +569,8 @@ model FunctionTemplate {
   jobFunctionId String    @map("function_id")
   documentType  String    @map("document_type")
   name          String
-  filePath      String    @map("file_path")
+  filePath      String?   @map("file_path")
+  fileContent   Bytes?    @map("file_content")
   version       Int
   variables     Json      @default("[]")
   isActive      Boolean   @default(true) @map("is_active")
@@ -496,7 +599,8 @@ model GeneratedDocument {
   unitId        String                  @map("unit_id")
   templateId    String                  @map("template_id")
   documentType  String                  @map("document_type")
-  filePath      String                  @map("file_path")
+  filePath      String?                 @map("file_path")
+  fileContent   Bytes?                  @map("file_content")
   generatedBy   String                  @map("generated_by")
   generatedAt   DateTime                @default(now()) @map("generated_at")
   status        GeneratedDocumentStatus @default(ACTIVE)
@@ -524,7 +628,8 @@ model AccidentTemplate {
   companyId     String    @map("company_id")
   documentType  String    @map("document_type")
   name          String
-  filePath      String    @map("file_path")
+  filePath      String?   @map("file_path")
+  fileContent   Bytes?    @map("file_content")
   version       Int
   variables     Json      @default("[]")
   isActive      Boolean   @default(true) @map("is_active")
@@ -554,7 +659,8 @@ model AccidentGeneratedDocument {
   unitId        String                  @map("unit_id")
   templateId    String                  @map("template_id")
   documentType  String                  @map("document_type")
-  filePath      String                  @map("file_path")
+  filePath      String?                 @map("file_path")
+  fileContent   Bytes?                  @map("file_content")
   generatedBy   String                  @map("generated_by")
   generatedAt   DateTime                @default(now()) @map("generated_at")
   status        GeneratedDocumentStatus @default(ACTIVE)
@@ -575,6 +681,35 @@ model AccidentGeneratedDocument {
   @@index([employeeId])
   @@index([templateId])
   @@map("accident_generated_documents")
+}
+
+model AccidentEvidence {
+  id          String               @id @default(uuid())
+  tenantId    String               @map("tenant_id")
+  companyId   String               @map("company_id")
+  accidentId  String               @map("accident_id")
+  evidenceType AccidentEvidenceType @map("evidence_type")
+  fileName    String               @map("file_name")
+  mimeType    String               @map("mime_type")
+  fileSize    Int                  @map("file_size")
+  fileContent Bytes                @map("file_content")
+  notes       String?              @map("notes")
+  createdBy   String               @map("created_by")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  deletedAt   DateTime?            @map("deleted_at")
+  deletedBy   String?              @map("deleted_by")
+  isActive    Boolean              @default(true) @map("is_active")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  company  Company  @relation(fields: [companyId], references: [id])
+  accident Accident @relation(fields: [accidentId], references: [id])
+  creator  User     @relation("AccidentEvidenceCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([companyId])
+  @@index([accidentId, createdAt])
+  @@index([evidenceType])
+  @@map("accident_evidences")
 }
 
 model DocumentAuditLog {
@@ -620,6 +755,7 @@ model User {
   generatedDocuments       GeneratedDocument[]  @relation("GeneratedDocumentGeneratedBy")
   createdAccidentTemplates AccidentTemplate[]
   generatedAccidentDocuments AccidentGeneratedDocument[]
+  createdAccidentEvidences AccidentEvidence[]   @relation("AccidentEvidenceCreatedBy")
   documentAuditLogs        DocumentAuditLog[]   @relation("DocumentAuditUser")
   companyAccess            UserCompanyAccess[]
   unitAccess               UserUnitAccess[]

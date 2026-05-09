@@ -1,7 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { AuditAction } from '@prisma/client'
 import { RequestUser, Role } from '@moby/shared'
-import * as path from 'path'
 import { randomUUID } from 'crypto'
 import { AuditService } from '../audit/audit.service'
 import { DocumentDownloadFormat, DocumentExportService } from './document-export.service'
@@ -63,23 +62,13 @@ export class DocumentsService {
     const version = (await this.documentsRepository.maxTemplateVersion(functionId, dto.documentType)) + 1
     const variables = this.docxTemplateService.extractVariables(file.buffer)
     const templateId = randomUUID()
-    const relativePath = path.posix.join(
-      'tenants',
-      jobFunction.tenantId,
-      'functions',
-      functionId,
-      'templates',
-      `${templateId}-v${version}.docx`,
-    )
-
-    const storedPath = await this.storageService.saveBuffer(relativePath, file.buffer)
     const template = await this.documentsRepository.createTemplate({
       id: templateId,
       tenantId: jobFunction.tenantId,
       functionId,
       documentType: dto.documentType,
       name: dto.name ?? file.filename.replace(/\.docx$/i, ''),
-      filePath: storedPath,
+      fileContent: file.buffer,
       version,
       variables,
       createdBy: currentUser.userId,
@@ -223,23 +212,13 @@ export class DocumentsService {
     const version = (await this.documentsRepository.maxAccidentTemplateVersion(companyId, dto.documentType)) + 1
     const variables = this.docxTemplateService.extractVariables(file.buffer)
     const templateId = randomUUID()
-    const relativePath = path.posix.join(
-      'tenants',
-      company.tenantId,
-      'companies',
-      companyId,
-      'accident-templates',
-      `${templateId}-v${version}.docx`,
-    )
-
-    const storedPath = await this.storageService.saveBuffer(relativePath, file.buffer)
     const template = await this.documentsRepository.createAccidentTemplate({
       id: templateId,
       tenantId: company.tenantId,
       companyId,
       documentType: dto.documentType,
       name: dto.name ?? file.filename.replace(/\.docx$/i, ''),
-      filePath: storedPath,
+      fileContent: file.buffer,
       version,
       variables,
       createdBy: currentUser.userId,
@@ -392,18 +371,9 @@ export class DocumentsService {
       this.deny('Template informado não está ativo para o tipo de documento solicitado')
     }
 
-    const templateBuffer = await this.storageService.readBuffer(template.filePath)
+    const templateBuffer = await this.resolveStoredBuffer(template, 'TEMPLATE_CONTENT_NOT_FOUND', 'Template sem conteúdo disponível')
     const outputBuffer = this.docxTemplateService.render(templateBuffer, this.buildTemplateData(employee))
     const documentId = randomUUID()
-    const relativePath = path.posix.join(
-      'tenants',
-      employee.tenantId,
-      'employees',
-      employee.id,
-      'generated-documents',
-      `${documentId}.docx`,
-    )
-    const storedPath = await this.storageService.saveBuffer(relativePath, outputBuffer)
 
     const document = await this.documentsRepository.createGeneratedDocument({
       id: documentId,
@@ -413,7 +383,7 @@ export class DocumentsService {
       unitId: employee.unitId,
       templateId: template.id,
       documentType: dto.documentType,
-      filePath: storedPath,
+      fileContent: outputBuffer,
       generatedBy: currentUser.userId,
     })
 
@@ -459,18 +429,9 @@ export class DocumentsService {
       this.deny('Template informado não está ativo para o tipo de documento solicitado')
     }
 
-    const templateBuffer = await this.storageService.readBuffer(template.filePath)
+    const templateBuffer = await this.resolveStoredBuffer(template, 'TEMPLATE_CONTENT_NOT_FOUND', 'Template sem conteúdo disponível')
     const outputBuffer = this.docxTemplateService.render(templateBuffer, this.buildAccidentTemplateData(accident))
     const documentId = randomUUID()
-    const relativePath = path.posix.join(
-      'tenants',
-      accident.tenantId,
-      'accidents',
-      accident.id,
-      'generated-documents',
-      `${documentId}.docx`,
-    )
-    const storedPath = await this.storageService.saveBuffer(relativePath, outputBuffer)
 
     const document = await this.documentsRepository.createAccidentGeneratedDocument({
       id: documentId,
@@ -481,7 +442,7 @@ export class DocumentsService {
       unitId: accident.unitId,
       templateId: template.id,
       documentType: dto.documentType,
-      filePath: storedPath,
+      fileContent: outputBuffer,
       generatedBy: currentUser.userId,
     })
 
@@ -520,7 +481,11 @@ export class DocumentsService {
     this.assertEmployeeAccess(currentUser, document.employee)
     this.assertDownloadFormatAccess(currentUser, format)
 
-    const sourceBuffer = await this.storageService.readBuffer(document.filePath)
+    const sourceBuffer = await this.resolveStoredBuffer(
+      document,
+      'DOCUMENT_CONTENT_NOT_FOUND',
+      'Documento sem conteúdo disponível',
+    )
     const employeeName = this.toFilenamePart(document.employee?.name ?? 'colaborador')
     const documentType = this.toFilenamePart(document.documentType)
     const filenameBase = `${documentType}-${employeeName}-${document.id}`
@@ -548,7 +513,11 @@ export class DocumentsService {
     this.assertAccidentAccess(currentUser, document.accident)
     this.assertDownloadFormatAccess(currentUser, format)
 
-    const sourceBuffer = await this.storageService.readBuffer(document.filePath)
+    const sourceBuffer = await this.resolveStoredBuffer(
+      document,
+      'DOCUMENT_CONTENT_NOT_FOUND',
+      'Documento sem conteúdo disponível',
+    )
     const employeeName = this.toFilenamePart(document.employee?.name ?? 'colaborador')
     const documentType = this.toFilenamePart(document.documentType)
     const accidentCode = this.toFilenamePart(document.accident?.code ?? document.id)
@@ -656,6 +625,24 @@ export class DocumentsService {
     }
 
     this.storageService.assertValidDocx(file.buffer, file.filename, file.mimetype)
+  }
+
+  private async resolveStoredBuffer(
+    record: { fileContent?: Uint8Array | Buffer | null; filePath?: string | null },
+    errorCode: string,
+    message: string,
+  ) {
+    if (record.fileContent?.length) {
+      return Buffer.from(record.fileContent)
+    }
+
+    if (record.filePath) {
+      return this.storageService.readLegacyBuffer(record.filePath)
+    }
+
+    throw new NotFoundException({
+      error: { code: errorCode, message, statusCode: 404 },
+    })
   }
 
   private async getFunctionOrThrow(functionId: string) {

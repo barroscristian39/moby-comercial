@@ -2,17 +2,13 @@ services:
   - type: web
     name: moby-sst-backend
     runtime: docker
-    plan: starter
+    plan: free
     region: virginia
     dockerfilePath: ./deploy/render/backend.Dockerfile
     dockerContext: .
     autoDeployTrigger: commit
     healthCheckPath: /api/setup/status
     preDeployCommand: pnpm --filter backend prisma:deploy
-    disk:
-      name: private-storage
-      mountPath: /app/storage
-      sizeGB: 5
     buildFilter:
       paths:
         - apps/backend/**
@@ -31,8 +27,6 @@ services:
         value: none
       - key: COOKIE_SECURE
         value: 'true'
-      - key: PRIVATE_STORAGE_ROOT
-        value: /app/storage/private
       - key: LIBREOFFICE_BIN
         value: soffice
       - key: DATABASE_URL
@@ -41,29 +35,19 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
       - key: REFRESH_TOKEN_SECRET
         generateValue: true
-
-  - type: web
-    name: moby-sst-frontend
-    runtime: docker
-    plan: starter
-    region: virginia
-    dockerfilePath: ./deploy/render/frontend.Dockerfile
-    dockerContext: .
-    autoDeployTrigger: commit
-    healthCheckPath: /login
-    buildFilter:
-      paths:
-        - apps/frontend/**
-        - packages/shared/**
-        - deploy/render/frontend.Dockerfile
-        - package.json
-        - pnpm-lock.yaml
-        - pnpm-workspace.yaml
-        - tsconfig.json
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: NEXT_PUBLIC_API_ORIGIN
+      - key: REFRESH_TOKEN_EXPIRES_IN
+        value: 7d
+      - key: REDIS_URL
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
         sync: false

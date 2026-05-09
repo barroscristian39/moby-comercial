@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
@@ -10,14 +10,7 @@ export class DocumentStorageService {
     process.env.PRIVATE_STORAGE_ROOT ?? path.join(process.cwd(), 'storage', 'private'),
   )
 
-  async saveBuffer(relativePath: string, buffer: Buffer): Promise<string> {
-    const absolutePath = this.resolvePrivatePath(relativePath)
-    await fs.mkdir(path.dirname(absolutePath), { recursive: true })
-    await fs.writeFile(absolutePath, buffer, { flag: 'wx' })
-    return this.toStoragePath(relativePath)
-  }
-
-  async readBuffer(relativePath: string): Promise<Buffer> {
+  async readLegacyBuffer(relativePath: string): Promise<Buffer> {
     const absolutePath = this.resolvePrivatePath(relativePath)
     return fs.readFile(absolutePath)
   }
@@ -58,9 +51,7 @@ export class DocumentStorageService {
     const rootWithSeparator = this.root.endsWith(path.sep) ? this.root : `${this.root}${path.sep}`
 
     if (absolutePath !== this.root && !absolutePath.startsWith(rootWithSeparator)) {
-      throw new InternalServerErrorException({
-        error: { code: 'INVALID_STORAGE_PATH', message: 'Caminho de storage inválido', statusCode: 500 },
-      })
+      throw new Error('Invalid storage path')
     }
 
     return absolutePath

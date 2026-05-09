@@ -9,16 +9,18 @@ Este projeto agora possui uma configuracao base para Render em `render.yaml` e D
 - Regiao sugerida: `virginia`
 - Runtime: `docker`
 - Arquivo IaC: `render.yaml`
+- Plano configurado: `free` para os dois web services
 
 ## Importante antes de subir
 
-O backend do MOBY grava templates e documentos em disco local privado. Por isso:
+Os templates e documentos gerados agora sao persistidos no PostgreSQL. Isso remove a necessidade de `persistent disk` no Render.
 
-- o backend precisa ficar em um plano pago no Render para suportar `persistent disk`
-- o disco foi configurado para montar em `/app/storage`
-- o `PRIVATE_STORAGE_ROOT` ja aponta para `/app/storage/private`
+Mesmo assim, as limitacoes de free tier continuam valendo:
 
-Sem esse disco, arquivos locais sao perdidos em restart e redeploy.
+- os web services podem entrar em spin-down por ociosidade
+- o primeiro acesso depois do spin-down pode demorar
+- o uso de build minutes e banda continua contando no workspace
+- trafego de saida para banco externo pode entrar nas regras de suspensao do free tier se o volume crescer muito
 
 ## 1. Subir pelo Blueprint
 
@@ -75,7 +77,17 @@ Entao:
 - exemplo correto: `postgresql://...`
 - exemplo incorreto: `"postgresql://..."`
 
-## 4. Validacoes depois do deploy
+## 4. Migrar arquivos antigos para dentro do banco
+
+Se voce ja possui templates ou documentos antigos gravados em `storage/private`, rode este comando localmente antes do deploy gratuito:
+
+```bash
+pnpm --filter backend documents:backfill-storage
+```
+
+Depois disso, os registros antigos passam a ficar no PostgreSQL e deixam de depender do filesystem local.
+
+## 5. Validacoes depois do deploy
 
 Teste estas rotas:
 
@@ -90,7 +102,7 @@ Valide tambem:
 - geracao de documentos de acidente
 - download de PDF e Word
 
-## 5. Quando mudar dominio ou URL publica
+## 6. Quando mudar dominio ou URL publica
 
 Se voce trocar o dominio publico do frontend ou do backend:
 
@@ -104,7 +116,7 @@ Isso e importante porque:
 - o backend usa `FRONTEND_URL` para CORS
 - o frontend embute a URL da API no build
 
-## 6. Observacoes especificas do projeto
+## 7. Observacoes especificas do projeto
 
 - O frontend usa Next.js `standalone` para rodar melhor em container.
 - O backend instala LibreOffice no container Linux para exportacao de DOCX para PDF.
@@ -113,14 +125,13 @@ Isso e importante porque:
 - O `render.yaml` usa `buildFilter` para evitar rebuild desnecessario em partes nao relacionadas do monorepo.
 - Se voce passar a usar Redis ou Cloudflare R2 em producao, adicione essas variaveis manualmente no painel do Render.
 
-## 7. Ajustes opcionais
+## 8. Ajustes opcionais
 
 Se quiser reduzir custo para testes:
 
-- mantenha o backend em plano pago por causa do disco persistente
-- o frontend pode ser rebaixado manualmente depois, se o seu uso tolerar spin-down
+- o blueprint ja sobe os dois servicos em `free`
+- para ambiente produtivo, considere sair do free por causa do spin-down e dos limites mensais
 
 Se quiser simplificar a stack no futuro:
 
-- mover documentos privados para R2
-- assim o backend deixa de depender de disco local persistente
+- mover documentos privados do banco para um storage dedicado, caso o volume de arquivos cresca muito

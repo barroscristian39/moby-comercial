@@ -1,6 +1,16 @@
 import { api } from '@/lib/api'
 import type { PaginatedResponse } from './companies.api'
-import type { AccidentSeverity, AccidentStatus, AccidentType } from '@moby/shared'
+import type {
+  AccidentActivityType,
+  AccidentBodyPart,
+  AccidentCommuteSubtype,
+  AccidentInjuredSide,
+  AccidentSeverity,
+  AccidentStatus,
+  AccidentType,
+  AccidentTypicalSubtype,
+  AccidentWorkJourneyType,
+} from '@moby/shared'
 
 export interface Accident {
   id: string
@@ -16,15 +26,36 @@ export interface Accident {
   jobFunctionId: string | null
   jobFunctionName: string | null
   code: string
+  regional: string | null
+  unitManagerName: string | null
+  salary: string | null
+  employeePhone: string | null
+  workSchedule: string | null
+  totalTimeInRole: string | null
+  activityType: AccidentActivityType | null
+  previousAccident: boolean
+  previousAccidentDescription: string | null
   occurredAt: string
   reportedAt: string
   location: string
+  occurrenceAddress: string | null
   accidentType: AccidentType
+  typicalSubtypes: AccidentTypicalSubtype[]
+  typicalSubtypeOther: string | null
+  commuteSubtypes: AccidentCommuteSubtype[]
+  commuteSubtypeOther: string | null
+  workJourneyType: AccidentWorkJourneyType | null
+  scheduleChangeStart: string | null
+  scheduleChangeEnd: string | null
   severity: AccidentSeverity
   status: AccidentStatus
   description: string
+  injuredSide: AccidentInjuredSide | null
+  injuredBodyParts: AccidentBodyPart[]
+  injuredBodyPartOther: string | null
   injuredBodyPart: string | null
   medicalCareProvided: boolean
+  medicalCareTime: string | null
   leaveRequired: boolean
   leaveDays: number
   catIssued: boolean
@@ -99,15 +130,36 @@ export interface AccidentConclusionReport {
 
 export interface CreateAccidentDto {
   employeeId: string
+  regional: string
+  unitManagerName?: string
+  salary?: string
+  employeePhone?: string
+  workSchedule?: string
+  totalTimeInRole?: string
+  activityType?: AccidentActivityType
+  previousAccident?: boolean
+  previousAccidentDescription?: string
   occurredAt: string
   reportedAt?: string
   location: string
+  occurrenceAddress?: string
   accidentType: AccidentType
+  typicalSubtypes?: AccidentTypicalSubtype[]
+  typicalSubtypeOther?: string
+  commuteSubtypes?: AccidentCommuteSubtype[]
+  commuteSubtypeOther?: string
+  workJourneyType?: AccidentWorkJourneyType
+  scheduleChangeStart?: string
+  scheduleChangeEnd?: string
   severity: AccidentSeverity
   status?: AccidentStatus
   description: string
+  injuredSide?: AccidentInjuredSide
+  injuredBodyParts: AccidentBodyPart[]
+  injuredBodyPartOther?: string
   injuredBodyPart?: string
   medicalCareProvided?: boolean
+  medicalCareTime?: string
   leaveRequired?: boolean
   leaveDays?: number
   catIssued?: boolean
@@ -128,7 +180,23 @@ export interface CreateAccidentDto {
 }
 
 export interface UpdateAccidentDto extends Omit<Partial<CreateAccidentDto>,
+  | 'unitManagerName'
+  | 'salary'
+  | 'employeePhone'
+  | 'workSchedule'
+  | 'totalTimeInRole'
+  | 'activityType'
+  | 'previousAccidentDescription'
+  | 'occurrenceAddress'
+  | 'typicalSubtypeOther'
+  | 'commuteSubtypeOther'
+  | 'workJourneyType'
+  | 'scheduleChangeStart'
+  | 'scheduleChangeEnd'
+  | 'injuredSide'
   | 'injuredBodyPart'
+  | 'injuredBodyPartOther'
+  | 'medicalCareTime'
   | 'catNumber'
   | 'witnesses'
   | 'immediateActions'
@@ -144,7 +212,23 @@ export interface UpdateAccidentDto extends Omit<Partial<CreateAccidentDto>,
   | 'conclusionSummary'
   | 'closureDate'
 > {
+  unitManagerName?: string | null
+  salary?: string | null
+  employeePhone?: string | null
+  workSchedule?: string | null
+  totalTimeInRole?: string | null
+  activityType?: AccidentActivityType | null
+  previousAccidentDescription?: string | null
+  occurrenceAddress?: string | null
+  typicalSubtypeOther?: string | null
+  commuteSubtypeOther?: string | null
+  workJourneyType?: AccidentWorkJourneyType | null
+  scheduleChangeStart?: string | null
+  scheduleChangeEnd?: string | null
+  injuredSide?: AccidentInjuredSide | null
   injuredBodyPart?: string | null
+  injuredBodyPartOther?: string | null
+  medicalCareTime?: string | null
   catNumber?: string | null
   witnesses?: string | null
   immediateActions?: string | null

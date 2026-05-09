@@ -6,13 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, WifiOff } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useSetupStatus } from '@/hooks/use-setup'
 import { useAuthStore } from '@/store/auth.store'
 import { useCompanyStore } from '@/store/company.store'
+import { cn } from '@/lib/utils'
 
 const LoginSchema = z.object({
   email:    z.string().email('E-mail inválido'),
@@ -26,7 +27,13 @@ type Feedback = {
   type: 'auth' | 'info' | 'network' | 'validation' | 'loading' | 'success'
 }
 
-export function LoginForm() {
+interface LoginFormProps {
+  variant?: 'desktop' | 'mobile'
+}
+
+export function LoginForm({
+  variant = 'desktop',
+}: LoginFormProps) {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const login            = useAuthStore((s) => s.login)
@@ -34,6 +41,7 @@ export function LoginForm() {
   const { data: setupStatus, isLoading: isCheckingSetup } = useSetupStatus()
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const isMobile = variant === 'mobile'
 
   const {
     register,
@@ -111,16 +119,22 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-3.5" noValidate>
+    <form
+      onSubmit={handleSubmit(onSubmit, onInvalid)}
+      className={cn('space-y-3.5', isMobile && 'space-y-4')}
+      noValidate
+    >
       {feedback && (
         <div
           role={feedback.type === 'loading' || feedback.type === 'success' || feedback.type === 'info' ? 'status' : 'alert'}
           aria-live="polite"
-          className={
+          className={cn(
+            'flex items-start gap-2 rounded-2xl border px-3.5 py-3',
+            isMobile && 'rounded-[24px] px-4 py-3.5',
             feedback.type === 'loading' || feedback.type === 'success' || feedback.type === 'info'
-              ? 'flex items-start gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-3.5 py-3'
-              : 'flex items-start gap-2 rounded-2xl border border-destructive/20 bg-destructive/10 px-3.5 py-3'
-          }
+              ? 'border-primary/20 bg-primary/10'
+              : 'border-destructive/20 bg-destructive/10',
+          )}
         >
           {feedback.type === 'loading' && <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" />}
           {feedback.type === 'success' && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />}
@@ -135,55 +149,84 @@ export function LoginForm() {
         </div>
       )}
 
-      <div className="space-y-2.5">
-        <div className="space-y-1.5">
+      <div className={cn('space-y-2.5', isMobile && 'space-y-3.5')}>
+        <div className={cn('space-y-1.5', isMobile && 'space-y-2')}>
           <Label htmlFor="email" className="sr-only">E-mail</Label>
-          <div className="login-input-pill">
-            <Mail className="h-4 w-4 shrink-0 text-primary/70" />
+          <div
+            className={cn(
+              'login-input-pill',
+              isMobile && 'login-field-shell min-h-[4.35rem] rounded-[22px] border-slate-200 bg-white px-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]',
+            )}
+          >
+            <Mail className={cn('h-4 w-4 shrink-0 text-primary/70', isMobile && 'h-5 w-5 text-slate-400')} />
             <Input
               id="email"
               type="email"
-              placeholder="voce@empresa.com"
+              placeholder={isMobile ? 'E-mail corporativo' : 'voce@empresa.com'}
               autoComplete="email"
               aria-invalid={!!errors.email}
-              className="h-11 border-0 bg-transparent px-0 text-[0.95rem] shadow-none focus-visible:border-transparent focus-visible:ring-0"
+              className={cn(
+                'h-11 border-0 bg-transparent px-0 text-[0.95rem] shadow-none focus-visible:border-transparent focus-visible:ring-0',
+                isMobile && 'h-[3.9rem] text-[0.98rem] text-slate-700 placeholder:text-slate-400',
+              )}
               {...register('email')}
             />
           </div>
           {errors.email && (
-            <p className="px-1 text-xs text-destructive">{errors.email.message}</p>
+            <p className={cn('px-1 text-xs text-destructive', isMobile && 'text-[0.82rem]')}>{errors.email.message}</p>
           )}
         </div>
 
-        <div className="space-y-1.5">
+        <div className={cn('space-y-1.5', isMobile && 'space-y-2')}>
           <Label htmlFor="password" className="sr-only">Senha</Label>
-          <div className="login-input-pill">
-            <LockKeyhole className="h-4 w-4 shrink-0 text-primary/70" />
+          <div
+            className={cn(
+              'login-input-pill',
+              isMobile && 'login-field-shell min-h-[4.35rem] rounded-[22px] border-slate-200 bg-white px-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]',
+            )}
+          >
+            <LockKeyhole className={cn('h-4 w-4 shrink-0 text-primary/70', isMobile && 'h-5 w-5 text-slate-400')} />
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder="Sua senha"
+              placeholder={isMobile ? 'Senha' : 'Sua senha'}
               autoComplete="current-password"
               aria-invalid={!!errors.password}
-              className="h-11 border-0 bg-transparent px-0 pr-1 text-[0.95rem] shadow-none focus-visible:border-transparent focus-visible:ring-0"
+              className={cn(
+                'h-11 border-0 bg-transparent px-0 pr-1 text-[0.95rem] shadow-none focus-visible:border-transparent focus-visible:ring-0',
+                isMobile && 'h-[3.9rem] text-[0.98rem] text-slate-700 placeholder:text-slate-400',
+              )}
               {...register('password')}
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="ml-2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={cn(
+                'ml-2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                isMobile && 'h-10 w-10 text-slate-400',
+              )}
               aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showPassword ? (
+                <EyeOff className={cn('h-4 w-4', isMobile && 'h-5 w-5')} />
+              ) : (
+                <Eye className={cn('h-4 w-4', isMobile && 'h-5 w-5')} />
+              )}
             </button>
           </div>
           {errors.password && (
-            <p className="px-1 text-xs text-destructive">{errors.password.message}</p>
+            <p className={cn('px-1 text-xs text-destructive', isMobile && 'text-[0.82rem]')}>{errors.password.message}</p>
           )}
         </div>
 
         <div className="flex justify-end px-1">
-          <Link href="/esqueci-a-senha" className="login-form-link text-xs font-medium text-primary">
+          <Link
+            href="/esqueci-a-senha"
+            className={cn(
+              'login-form-link text-xs font-medium text-primary',
+              isMobile && 'text-[0.92rem] font-semibold',
+            )}
+          >
             Esqueceu a senha?
           </Link>
         </div>
@@ -192,7 +235,10 @@ export function LoginForm() {
       <Button
         type="submit"
         size="lg"
-        className="login-submit-button h-11 w-full rounded-xl text-sm font-semibold shadow-[0_18px_36px_rgba(37,99,235,0.2)] hover:shadow-[0_22px_42px_rgba(37,99,235,0.24)] disabled:opacity-100"
+        className={cn(
+          'login-submit-button h-11 w-full rounded-xl text-sm font-semibold shadow-[0_18px_36px_rgba(37,99,235,0.2)] hover:shadow-[0_22px_42px_rgba(37,99,235,0.24)] disabled:opacity-100',
+          isMobile && 'h-[3.85rem] rounded-[22px] bg-gradient-to-r from-[#1f63ff] via-[#2058f0] to-[#1848db] text-base shadow-[0_22px_42px_rgba(37,99,235,0.28)]',
+        )}
         disabled={isBusy}
         aria-busy={isBusy}
         data-loading={isBusy ? 'true' : 'false'}
@@ -211,9 +257,18 @@ export function LoginForm() {
         </span>
       </Button>
 
-      <p className="text-center text-[11px] text-slate-500">
-        Acesso protegido
-      </p>
+      {isMobile ? (
+        <div className="pt-0.5">
+          <div className="flex items-center justify-center gap-2 text-[0.9rem] text-slate-400">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            <span>Acesso protegido</span>
+          </div>
+        </div>
+      ) : (
+        <p className="text-center text-[11px] text-slate-500">
+          Acesso protegido
+        </p>
+      )}
     </form>
   )
 }

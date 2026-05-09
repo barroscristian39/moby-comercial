@@ -38,7 +38,7 @@ export class DocumentsRepository {
     functionId: string
     documentType: string
     name: string
-    filePath: string
+    fileContent: Buffer
     version: number
     variables: string[]
     createdBy: string
@@ -60,7 +60,8 @@ export class DocumentsRepository {
         jobFunctionId: data.functionId,
         documentType: data.documentType,
         name: data.name,
-        filePath: data.filePath,
+        filePath: null,
+        fileContent: data.fileContent,
         version: data.version,
         variables: data.variables,
         createdBy: data.createdBy,
@@ -86,7 +87,7 @@ export class DocumentsRepository {
     companyId: string
     documentType: string
     name: string
-    filePath: string
+    fileContent: Buffer
     version: number
     variables: string[]
     createdBy: string
@@ -108,7 +109,8 @@ export class DocumentsRepository {
         companyId: data.companyId,
         documentType: data.documentType,
         name: data.name,
-        filePath: data.filePath,
+        filePath: null,
+        fileContent: data.fileContent,
         version: data.version,
         variables: data.variables,
         createdBy: data.createdBy,
@@ -329,7 +331,7 @@ export class DocumentsRepository {
     unitId: string
     templateId: string
     documentType: string
-    filePath: string
+    fileContent: Buffer
     generatedBy: string
   }) {
     const document = await this.prisma.generatedDocument.create({
@@ -341,7 +343,8 @@ export class DocumentsRepository {
         unitId: data.unitId,
         templateId: data.templateId,
         documentType: data.documentType,
-        filePath: data.filePath,
+        filePath: null,
+        fileContent: data.fileContent,
         generatedBy: data.generatedBy,
         status: GeneratedDocumentStatus.ACTIVE,
       },
@@ -368,7 +371,7 @@ export class DocumentsRepository {
     unitId: string
     templateId: string
     documentType: string
-    filePath: string
+    fileContent: Buffer
     generatedBy: string
   }) {
     return this.prisma.accidentGeneratedDocument.create({
@@ -381,7 +384,8 @@ export class DocumentsRepository {
         unitId: data.unitId,
         templateId: data.templateId,
         documentType: data.documentType,
-        filePath: data.filePath,
+        filePath: null,
+        fileContent: data.fileContent,
         generatedBy: data.generatedBy,
         status: GeneratedDocumentStatus.ACTIVE,
       },

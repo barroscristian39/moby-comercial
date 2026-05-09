@@ -8,6 +8,9 @@ dist/
 out/
 build/
 
+# Arquivos privados locais
+apps/backend/storage/
+
 # Ambiente — NUNCA commitar
 .env
 .env.local

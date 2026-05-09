@@ -467,9 +467,9 @@
     position: relative;
     overflow: hidden;
     background:
-      radial-gradient(circle at 18% 18%, rgb(191 219 254 / 0.24), transparent 0 24%),
-      radial-gradient(circle at 86% 30%, rgb(96 165 250 / 0.22), transparent 0 18%),
-      linear-gradient(180deg, rgb(99 113 188) 0%, rgb(52 93 200) 48%, rgb(12 41 102) 100%);
+      radial-gradient(circle at 18% 18%, rgb(96 165 250 / 0.18), transparent 0 24%),
+      radial-gradient(circle at 86% 30%, rgb(37 99 235 / 0.18), transparent 0 18%),
+      linear-gradient(180deg, rgb(18 43 108) 0%, rgb(16 52 141) 42%, rgb(5 23 67) 100%);
     box-shadow:
       0 30px 80px rgb(15 23 42 / 0.24),
       inset 0 1px 0 rgb(255 255 255 / 0.16);
@@ -496,6 +496,49 @@
     background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.24), transparent);
     transform: rotate(36deg);
     opacity: 0.78;
+  }
+
+  .login-mobile-safety-mark {
+    position: absolute;
+    z-index: 0;
+    color: rgb(191 219 254 / 0.24);
+    filter: drop-shadow(0 10px 24px rgb(15 23 42 / 0.12));
+    pointer-events: none;
+    animation: login-chip-float 8.4s ease-in-out infinite;
+  }
+
+  .login-mobile-safety-mark svg {
+    display: block;
+    height: 100%;
+    width: 100%;
+  }
+
+  .login-mobile-safety-mark-helmet {
+    left: 7%;
+    top: 16%;
+    height: 42px;
+    width: 42px;
+    opacity: 0.45;
+    transform: rotate(-10deg);
+  }
+
+  .login-mobile-safety-mark-shield {
+    right: 12%;
+    top: 16%;
+    height: 40px;
+    width: 40px;
+    opacity: 0.4;
+    transform: rotate(10deg);
+    animation-delay: 1.4s;
+  }
+
+  .login-mobile-safety-mark-wave {
+    right: 18%;
+    bottom: 19%;
+    height: 28px;
+    width: 52px;
+    opacity: 0.36;
+    animation-delay: 2.2s;
   }
 
   .login-mobile-crest {
