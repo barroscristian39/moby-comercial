@@ -74,6 +74,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   async logout() {
     try {
       await api.post<any>('/auth/logout')
+    } catch {
+      // Backend indisponível — o logout local continua normalmente
     } finally {
       sessionStorage.clear()
       // Remove o cookie de sinalização ao sair
