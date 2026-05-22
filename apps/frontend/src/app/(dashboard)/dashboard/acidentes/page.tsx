@@ -163,16 +163,20 @@ export default function AcidentesPage() {
     if (!templateMutationCompanyId || !selectedTemplateFile) return
 
     const formElement = event.currentTarget
-    const template = await uploadAccidentTemplate.mutateAsync({
-      documentType: templateDocumentType,
-      name: templateName || undefined,
-      file: selectedTemplateFile,
-    })
+    try {
+      const template = await uploadAccidentTemplate.mutateAsync({
+        documentType: templateDocumentType,
+        name: templateName || undefined,
+        file: selectedTemplateFile,
+      })
 
-    setLastUploadedTemplate(template)
-    setTemplateName('')
-    setSelectedTemplateFile(null)
-    formElement.reset()
+      setLastUploadedTemplate(template)
+      setTemplateName('')
+      setSelectedTemplateFile(null)
+      formElement.reset()
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o formulário aberto
+    }
   }
 
   function openTemplateEditor(template: AccidentTemplate) {
@@ -192,24 +196,36 @@ export default function AcidentesPage() {
       return
     }
 
-    await updateAccidentTemplate.mutateAsync({
-      templateId: editingTemplate.id,
-      name: normalizedName,
-    })
-    setIsTemplateEditDialogOpen(false)
+    try {
+      await updateAccidentTemplate.mutateAsync({
+        templateId: editingTemplate.id,
+        name: normalizedName,
+      })
+      setIsTemplateEditDialogOpen(false)
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
+    }
   }
 
   async function toggleTemplateStatus(template: AccidentTemplate) {
-    await updateAccidentTemplate.mutateAsync({
-      templateId: template.id,
-      isActive: !template.isActive,
-    })
+    try {
+      await updateAccidentTemplate.mutateAsync({
+        templateId: template.id,
+        isActive: !template.isActive,
+      })
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   async function removeTemplate(template: AccidentTemplate) {
     const confirmed = window.confirm(`Deseja excluir o template "${template.name}"?`)
     if (!confirmed) return
-    await deleteAccidentTemplate.mutateAsync(template.id)
+    try {
+      await deleteAccidentTemplate.mutateAsync(template.id)
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   function openAccident(accidentId: string) {

@@ -154,7 +154,11 @@ export default function EmpresasPage() {
 
   async function alternarStatus(empresa: Company) {
     if (!canManageCompanies) return
-    await updateCompany.mutateAsync({ id: empresa.id, isActive: !empresa.isActive })
+    try {
+      await updateCompany.mutateAsync({ id: empresa.id, isActive: !empresa.isActive })
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   function selecionarEmpresa(empresa: Company) {

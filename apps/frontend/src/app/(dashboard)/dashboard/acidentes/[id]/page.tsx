@@ -447,6 +447,7 @@ export default function AcidenteDetalhePage() {
   async function handleSave(values: AccidentDetailForm) {
     if (!accidentId) return
 
+    try {
     await updateAccident.mutateAsync({
       id: accidentId,
       regional: values.regional,
@@ -515,6 +516,9 @@ export default function AcidenteDetalhePage() {
         ? normalizeNullableDateTime(values.closureDate)
         : null,
     })
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   function updateInjuredBodyPart(index: number, value: string) {
@@ -679,16 +683,20 @@ export default function AcidenteDetalhePage() {
   async function handleUploadEvidence() {
     if (!accidentId || selectedEvidenceFiles.length === 0) return
 
-    for (const file of selectedEvidenceFiles) {
-      await uploadEvidence.mutateAsync({
-        evidenceType,
-        notes: evidenceNotes.trim() || undefined,
-        file,
-      })
-    }
+    try {
+      for (const file of selectedEvidenceFiles) {
+        await uploadEvidence.mutateAsync({
+          evidenceType,
+          notes: evidenceNotes.trim() || undefined,
+          file,
+        })
+      }
 
-    setSelectedEvidenceFiles([])
-    setEvidenceNotes('')
+      setSelectedEvidenceFiles([])
+      setEvidenceNotes('')
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém os arquivos selecionados
+    }
   }
 
   async function handleDownloadEvidence(evidence: AccidentEvidence) {

@@ -118,15 +118,19 @@ export default function FuncaoGestaoPage() {
     setTemplateError(null)
     const form = event.currentTarget
 
-    const template = await uploadTemplate.mutateAsync({
-      documentType,
-      name: templateName || undefined,
-      file: selectedFile,
-    })
-    setLastUploadedTemplate(template)
-    setTemplateName('')
-    setSelectedFile(null)
-    form.reset()
+    try {
+      const template = await uploadTemplate.mutateAsync({
+        documentType,
+        name: templateName || undefined,
+        file: selectedFile,
+      })
+      setLastUploadedTemplate(template)
+      setTemplateName('')
+      setSelectedFile(null)
+      form.reset()
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o formulário aberto
+    }
   }
 
   function abrirModalEditarTemplate(template: FunctionTemplate) {
@@ -147,19 +151,27 @@ export default function FuncaoGestaoPage() {
       return
     }
 
-    await updateTemplate.mutateAsync({
-      templateId: editingTemplate.id,
-      name: normalizedName,
-    })
-    setTemplateModalOpen(false)
+    try {
+      await updateTemplate.mutateAsync({
+        templateId: editingTemplate.id,
+        name: normalizedName,
+      })
+      setTemplateModalOpen(false)
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
+    }
   }
 
   async function alternarStatusTemplate(template: FunctionTemplate) {
     if (!canManageTemplates) return
-    await updateTemplate.mutateAsync({
-      templateId: template.id,
-      isActive: !template.isActive,
-    })
+    try {
+      await updateTemplate.mutateAsync({
+        templateId: template.id,
+        isActive: !template.isActive,
+      })
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   async function excluirTemplate(template: FunctionTemplate) {
@@ -170,7 +182,11 @@ export default function FuncaoGestaoPage() {
     )
     if (!confirmed) return
 
-    await deleteTemplate.mutateAsync(template.id)
+    try {
+      await deleteTemplate.mutateAsync(template.id)
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   return (

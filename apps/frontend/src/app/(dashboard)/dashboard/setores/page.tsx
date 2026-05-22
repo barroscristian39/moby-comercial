@@ -90,26 +90,34 @@ export default function SetoresPage() {
   }
 
   async function salvar(data: SetorFormData) {
-    if (editando) {
-      await updateSector.mutateAsync({
-        id: editando.id,
-        name: data.nome,
-        description: data.descricao || undefined,
-        unitId: data.unidadeId,
-      })
-    } else {
-      await createSector.mutateAsync({
-        companyId: data.empresaId,
-        unitId: data.unidadeId,
-        name: data.nome,
-        description: data.descricao || undefined,
-      })
+    try {
+      if (editando) {
+        await updateSector.mutateAsync({
+          id: editando.id,
+          name: data.nome,
+          description: data.descricao || undefined,
+          unitId: data.unidadeId,
+        })
+      } else {
+        await createSector.mutateAsync({
+          companyId: data.empresaId,
+          unitId: data.unidadeId,
+          name: data.nome,
+          description: data.descricao || undefined,
+        })
+      }
+      setModalAberto(false)
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
     }
-    setModalAberto(false)
   }
 
   async function alternarStatus(setor: Sector) {
-    await updateSector.mutateAsync({ id: setor.id, isActive: !setor.isActive })
+    try {
+      await updateSector.mutateAsync({ id: setor.id, isActive: !setor.isActive })
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   const isSaving = createSector.isPending || updateSector.isPending

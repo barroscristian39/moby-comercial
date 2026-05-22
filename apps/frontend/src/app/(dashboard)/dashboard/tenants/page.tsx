@@ -91,22 +91,26 @@ export default function TenantsPage() {
   }
 
   async function salvar(data: TenantFormData) {
-    await createTenant.mutateAsync({
-      name: data.name,
-      slug: data.slug || undefined,
-      plan: data.plan,
-      status: data.status,
-      isActive: data.status === 'ACTIVE' || data.status === 'TRIAL',
-      startDate: new Date().toISOString(),
-      admin: {
-        name: data.adminName,
-        email: data.adminEmail,
-        password: data.adminPassword,
-      },
-    })
+    try {
+      await createTenant.mutateAsync({
+        name: data.name,
+        slug: data.slug || undefined,
+        plan: data.plan,
+        status: data.status,
+        isActive: data.status === 'ACTIVE' || data.status === 'TRIAL',
+        startDate: new Date().toISOString(),
+        admin: {
+          name: data.adminName,
+          email: data.adminEmail,
+          password: data.adminPassword,
+        },
+      })
 
-    await refetch()
-    setModalAberto(false)
+      await refetch()
+      setModalAberto(false)
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
+    }
   }
 
   const isSaving = createTenant.isPending

@@ -68,7 +68,7 @@ export default function FuncoesPage() {
   const funcoesFiltradas = allFunctions.filter((f) => {
     const termo = busca.toLowerCase()
     const matchBusca =
-      f.name.toLowerCase().includes(termo) ||
+      (f.name ?? '').toLowerCase().includes(termo) ||
       (f.cbo ?? '').includes(termo) ||
       (f.unitId ? unitMap[f.unitId] ?? '' : '').toLowerCase().includes(termo) ||
       (companyMap[f.companyId] ?? '').toLowerCase().includes(termo)
@@ -110,7 +110,7 @@ export default function FuncoesPage() {
         id: editando.id,
         name: data.nome,
         cbo: cboDigits,
-        unitId: data.unidadeId || undefined,
+        unitIds: data.unidadeId ? [data.unidadeId] : undefined,
         description: data.descricao || undefined,
       })
     } else {
@@ -118,7 +118,7 @@ export default function FuncoesPage() {
         companyId: data.empresaId,
         name: data.nome,
         cbo: cboDigits,
-        unitId: data.unidadeId || undefined,
+        unitIds: [data.unidadeId],
         description: data.descricao || undefined,
       })
     }

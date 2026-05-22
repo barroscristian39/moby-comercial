@@ -186,29 +186,37 @@ export default function EpiPage() {
   }
 
   async function salvarEpi(data: EpiFormData) {
-    if (editando) {
-      await updateEpiItem.mutateAsync({
-        id: editando.id,
-        name: data.nome, caNumber: data.caNumber,
-        manufacturer: data.fabricante || undefined,
-        caExpiry: data.caExpiry || undefined,
-        stockQuantity: data.stockQuantity,
-        minStockQuantity: data.minStockQuantity,
-        description: data.description || undefined,
-      })
-    } else {
-      await createEpiItem.mutateAsync({
-        companyId: data.empresaId, name: data.nome, caNumber: data.caNumber,
-        manufacturer: data.fabricante || undefined, caExpiry: data.caExpiry || undefined,
-        stockQuantity: data.stockQuantity, minStockQuantity: data.minStockQuantity,
-        description: data.description || undefined,
-      })
+    try {
+      if (editando) {
+        await updateEpiItem.mutateAsync({
+          id: editando.id,
+          name: data.nome, caNumber: data.caNumber,
+          manufacturer: data.fabricante || undefined,
+          caExpiry: data.caExpiry || undefined,
+          stockQuantity: data.stockQuantity,
+          minStockQuantity: data.minStockQuantity,
+          description: data.description || undefined,
+        })
+      } else {
+        await createEpiItem.mutateAsync({
+          companyId: data.empresaId, name: data.nome, caNumber: data.caNumber,
+          manufacturer: data.fabricante || undefined, caExpiry: data.caExpiry || undefined,
+          stockQuantity: data.stockQuantity, minStockQuantity: data.minStockQuantity,
+          description: data.description || undefined,
+        })
+      }
+      setModalEpiAberto(false)
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
     }
-    setModalEpiAberto(false)
   }
 
   async function alternarStatus(epi: EpiItem) {
-    await updateEpiItem.mutateAsync({ id: epi.id, isActive: !epi.isActive })
+    try {
+      await updateEpiItem.mutateAsync({ id: epi.id, isActive: !epi.isActive })
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   // Entrega — handlers

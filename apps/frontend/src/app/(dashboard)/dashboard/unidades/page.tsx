@@ -105,33 +105,41 @@ export default function UnidadesPage() {
     if (!canManageUnits) return
     const cepDigits = data.addressZipCode?.replace(/\D/g, '') || undefined
 
-    if (editando) {
-      await updateUnit.mutateAsync({
-        id: editando.id,
-        name: data.nome,
-        addressStreet: data.addressStreet || undefined,
-        addressNumber: data.addressNumber || undefined,
-        addressCity: data.addressCity || undefined,
-        addressState: data.addressState || undefined,
-        addressZipCode: cepDigits,
-      })
-    } else {
-      await createUnit.mutateAsync({
-        companyId: data.empresaId,
-        name: data.nome,
-        addressStreet: data.addressStreet || undefined,
-        addressNumber: data.addressNumber || undefined,
-        addressCity: data.addressCity || undefined,
-        addressState: data.addressState || undefined,
-        addressZipCode: cepDigits,
-      })
+    try {
+      if (editando) {
+        await updateUnit.mutateAsync({
+          id: editando.id,
+          name: data.nome,
+          addressStreet: data.addressStreet || undefined,
+          addressNumber: data.addressNumber || undefined,
+          addressCity: data.addressCity || undefined,
+          addressState: data.addressState || undefined,
+          addressZipCode: cepDigits,
+        })
+      } else {
+        await createUnit.mutateAsync({
+          companyId: data.empresaId,
+          name: data.nome,
+          addressStreet: data.addressStreet || undefined,
+          addressNumber: data.addressNumber || undefined,
+          addressCity: data.addressCity || undefined,
+          addressState: data.addressState || undefined,
+          addressZipCode: cepDigits,
+        })
+      }
+      setModalAberto(false)
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
     }
-    setModalAberto(false)
   }
 
   async function alternarStatus(unidade: Unit) {
     if (!canManageUnits) return
-    await updateUnit.mutateAsync({ id: unidade.id, isActive: !unidade.isActive })
+    try {
+      await updateUnit.mutateAsync({ id: unidade.id, isActive: !unidade.isActive })
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   const isSaving = createUnit.isPending || updateUnit.isPending

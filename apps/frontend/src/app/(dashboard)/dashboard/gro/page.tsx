@@ -261,26 +261,34 @@ export default function GRODashboardPage() {
       controlMeasures: data.controlMeasures?.trim() || undefined,
     }
 
-    if (editingRisk) {
-      await updateRisk.mutateAsync({
-        id: editingRisk.id,
-        ...payload,
-        isActive: data.isActive,
-      })
-    } else {
-      await createRisk.mutateAsync(payload)
-    }
+    try {
+      if (editingRisk) {
+        await updateRisk.mutateAsync({
+          id: editingRisk.id,
+          ...payload,
+          isActive: data.isActive,
+        })
+      } else {
+        await createRisk.mutateAsync(payload)
+      }
 
-    setModalOpen(false)
-    await refetch()
+      setModalOpen(false)
+      await refetch()
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
+    }
   }
 
   async function alternarStatus(risk: Risk) {
     if (!canManageRisks) return
-    await updateRisk.mutateAsync({
-      id: risk.id,
-      isActive: !risk.isActive,
-    })
+    try {
+      await updateRisk.mutateAsync({
+        id: risk.id,
+        isActive: !risk.isActive,
+      })
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   function badgeVariantForLevel(level: RiskLevel) {

@@ -171,37 +171,45 @@ export default function RiscosPage() {
   }
 
   async function salvar(data: RiscoFormData) {
-    if (editando) {
-      await updateRisk.mutateAsync({
-        id: editando.id,
-        name: data.nome,
-        type: data.tipo,
-        level: data.nivel,
-        probability: data.probabilidade,
-        severity: data.severidade,
-        unitId: data.unidadeId,
-        jobFunctionId: data.funcaoId || null,
-        description: data.descricao || undefined,
-        controlMeasures: data.medidasControle || undefined,
-      })
-    } else {
-      await createRisk.mutateAsync({
-        name: data.nome,
-        type: data.tipo,
-        level: data.nivel,
-        probability: data.probabilidade,
-        severity: data.severidade,
-        unitId: data.unidadeId,
-        jobFunctionId: data.funcaoId || null,
-        description: data.descricao || undefined,
-        controlMeasures: data.medidasControle || undefined,
-      })
+    try {
+      if (editando) {
+        await updateRisk.mutateAsync({
+          id: editando.id,
+          name: data.nome,
+          type: data.tipo,
+          level: data.nivel,
+          probability: data.probabilidade,
+          severity: data.severidade,
+          unitId: data.unidadeId,
+          jobFunctionId: data.funcaoId || null,
+          description: data.descricao || undefined,
+          controlMeasures: data.medidasControle || undefined,
+        })
+      } else {
+        await createRisk.mutateAsync({
+          name: data.nome,
+          type: data.tipo,
+          level: data.nivel,
+          probability: data.probabilidade,
+          severity: data.severidade,
+          unitId: data.unidadeId,
+          jobFunctionId: data.funcaoId || null,
+          description: data.descricao || undefined,
+          controlMeasures: data.medidasControle || undefined,
+        })
+      }
+      setModalAberto(false)
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
     }
-    setModalAberto(false)
   }
 
   async function alternarStatus(risco: Risk) {
-    await updateRisk.mutateAsync({ id: risco.id, isActive: !risco.isActive })
+    try {
+      await updateRisk.mutateAsync({ id: risco.id, isActive: !risco.isActive })
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   const isSaving = createRisk.isPending || updateRisk.isPending

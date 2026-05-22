@@ -334,8 +334,12 @@ export default function UsuariosPage() {
 
   async function alternarStatus(user: User) {
     if (!canManage(user) || user.id === currentUser?.id) return
-    await updateUser.mutateAsync({ id: user.id, isActive: !user.isActive })
-    await usersQuery.refetch()
+    try {
+      await updateUser.mutateAsync({ id: user.id, isActive: !user.isActive })
+      await usersQuery.refetch()
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios
+    }
   }
 
   return (

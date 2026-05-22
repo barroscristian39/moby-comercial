@@ -176,8 +176,12 @@ export class FunctionsService {
     }
     if (currentUser.role === Role.TENANT_ADMIN) return
 
+    // Funções sem unidades associadas são acessíveis a todos do tenant (compatibilidade com módulo legado)
+    const functionUnits: any[] = jobFunction.functionUnits ?? []
+    if (functionUnits.length === 0) return
+
     const allowedUnits = new Set(currentUser.unitIds ?? [])
-    const hasUnitAccess = jobFunction.functionUnits?.some((link: any) => allowedUnits.has(link.unitId))
+    const hasUnitAccess = functionUnits.some((link: any) => allowedUnits.has(link.unitId))
     if (!hasUnitAccess) {
       this.deny('Função fora do escopo de unidades permitido')
     }

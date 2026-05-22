@@ -145,45 +145,53 @@ export default function ColaboradoresPage() {
     // Remove a formatação do CPF antes de enviar — backend exige 11 dígitos
     const cpfDigits = data.cpf.replace(/\D/g, '')
 
-    let empresaParaExibir = data.empresaId
+    try {
+      let empresaParaExibir = data.empresaId
 
-    if (editando) {
-      const atualizado = await updateEmployee.mutateAsync({
-        id: editando.id,
-        name: data.nome,
-        cpf: cpfDigits,
-        birthDate: data.dataNascimento || undefined,
-        gender: data.genero,
-        unitId: data.unidadeId,
-        jobFunctionId: data.funcaoId,
-        admissionDate: data.dataAdmissao,
-        registration: data.matricula || undefined,
-      })
-      empresaParaExibir = atualizado.companyId
-    } else {
-      const criado = await createEmployee.mutateAsync({
-        companyId: data.empresaId,
-        unitId: data.unidadeId,
-        jobFunctionId: data.funcaoId,
-        name: data.nome,
-        cpf: cpfDigits,
-        birthDate: data.dataNascimento || undefined,
-        gender: data.genero,
-        admissionDate: data.dataAdmissao,
-        registration: data.matricula || undefined,
-      })
-      empresaParaExibir = criado.companyId
+      if (editando) {
+        const atualizado = await updateEmployee.mutateAsync({
+          id: editando.id,
+          name: data.nome,
+          cpf: cpfDigits,
+          birthDate: data.dataNascimento || undefined,
+          gender: data.genero,
+          unitId: data.unidadeId,
+          jobFunctionId: data.funcaoId,
+          admissionDate: data.dataAdmissao,
+          registration: data.matricula || undefined,
+        })
+        empresaParaExibir = atualizado.companyId
+      } else {
+        const criado = await createEmployee.mutateAsync({
+          companyId: data.empresaId,
+          unitId: data.unidadeId,
+          jobFunctionId: data.funcaoId,
+          name: data.nome,
+          cpf: cpfDigits,
+          birthDate: data.dataNascimento || undefined,
+          gender: data.genero,
+          admissionDate: data.dataAdmissao,
+          registration: data.matricula || undefined,
+        })
+        empresaParaExibir = criado.companyId
+      }
+
+      setBusca('')
+      setFiltroEmpresaId(empresaParaExibir)
+      await refetch()
+      setEditando(null)
+      setModalAberto(false)
+    } catch {
+      // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
     }
-
-    setBusca('')
-    setFiltroEmpresaId(empresaParaExibir)
-    await refetch()
-    setEditando(null)
-    setModalAberto(false)
   }
 
   async function alternarStatus(colaborador: Employee) {
-    await updateEmployee.mutateAsync({ id: colaborador.id, isActive: !colaborador.isActive })
+    try {
+      await updateEmployee.mutateAsync({ id: colaborador.id, isActive: !colaborador.isActive })
+    } catch {
+      // Erro já exibido via toast
+    }
   }
 
   function abrirPerfilColaborador(colaboradorId: string) {
