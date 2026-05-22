@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common'
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
+import { CorsMiddleware } from './common/middleware/cors.middleware'
 
 import { PrismaModule } from './database/prisma.module'
 import { HttpExceptionFilter } from './common/filters/http-exception.filter'
@@ -70,4 +71,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CorsMiddleware).forRoutes('*')
+  }
+}
