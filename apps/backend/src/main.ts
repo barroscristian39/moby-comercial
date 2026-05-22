@@ -9,6 +9,35 @@ async function bootstrap() {
     new FastifyAdapter({ logger: process.env.NODE_ENV !== 'production' }),
   )
 
+  // CORS — deve ser registrado ANTES de qualquer outro plugin para garantir preflight
+  const allowedOrigins = Array.from(new Set([
+    ...(process.env.FRONTEND_URL || '').split(','),
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ]
+    .map((origin) => origin.trim())
+    .filter(Boolean)))
+
+  try {
+    const fastifyCors = require('@fastify/cors')
+    await app.register(fastifyCors.default ?? fastifyCors, {
+      origin: (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true)
+          return
+        }
+        callback(null, false)
+      },
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      exposedHeaders: ['Content-Disposition'],
+    })
+    console.log('[Bootstrap] @fastify/cors registrado')
+  } catch (e: any) {
+    console.warn('[Bootstrap] Falha ao registrar @fastify/cors:', e.message)
+  }
+
   // Plugins Fastify — carregados dinamicamente para evitar erros de import ESM
   try {
     const fastifyCookie = require('@fastify/cookie')
@@ -16,7 +45,7 @@ async function bootstrap() {
       secret: process.env.REFRESH_TOKEN_SECRET,
     })
     console.log('[Bootstrap] @fastify/cookie registrado')
-  } catch (e) {
+  } catch (e: any) {
     console.warn('[Bootstrap] Falha ao registrar @fastify/cookie:', e.message)
   }
 
@@ -24,11 +53,11 @@ async function bootstrap() {
     const fastifyHelmet = require('@fastify/helmet')
     await app.register(fastifyHelmet.default ?? fastifyHelmet, {
       contentSecurityPolicy: false,
-      crossOriginResourcePolicy: { policy: 'same-site' },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
       hsts: process.env.NODE_ENV === 'production',
     })
     console.log('[Bootstrap] @fastify/helmet registrado')
-  } catch (e) {
+  } catch (e: any) {
     console.warn('[Bootstrap] Falha ao registrar @fastify/helmet:', e.message)
   }
 
@@ -41,32 +70,9 @@ async function bootstrap() {
       },
     })
     console.log('[Bootstrap] @fastify/multipart registrado')
-  } catch (e) {
+  } catch (e: any) {
     console.warn('[Bootstrap] Falha ao registrar @fastify/multipart:', e.message)
   }
-
-  // CORS
-  const allowedOrigins = Array.from(new Set([
-    ...(process.env.FRONTEND_URL || '').split(','),
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-  ]
-    .map((origin) => origin.trim())
-    .filter(Boolean)))
-
-  app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true)
-        return
-      }
-      callback(null, false)
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['Content-Disposition'],
-  })
 
   // Prefixo global da API
   app.setGlobalPrefix('api')
