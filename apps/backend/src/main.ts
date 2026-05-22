@@ -9,34 +9,38 @@ async function bootstrap() {
     new FastifyAdapter({ logger: process.env.NODE_ENV !== 'production' }),
   )
 
-  // CORS — deve ser registrado ANTES de qualquer outro plugin para garantir preflight
+  // Origens permitidas
   const allowedOrigins = Array.from(new Set([
-    ...(process.env.FRONTEND_URL || '').split(','),
+    ...(process.env.FRONTEND_URL || '').split(',').map((o) => o.trim()).filter(Boolean),
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-  ]
-    .map((origin) => origin.trim())
-    .filter(Boolean)))
+  ]))
 
-  try {
-    const fastifyCors = require('@fastify/cors')
-    await app.register(fastifyCors.default ?? fastifyCors, {
-      origin: (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true)
-          return
-        }
-        callback(null, false)
-      },
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      exposedHeaders: ['Content-Disposition'],
-    })
-    console.log('[Bootstrap] @fastify/cors registrado')
-  } catch (e: any) {
-    console.warn('[Bootstrap] Falha ao registrar @fastify/cors:', e.message)
-  }
+  // CORS via hook direto no Fastify — mais confiável que @fastify/cors com NestJS Fastify Adapter
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fastify = app.getHttpAdapter().getInstance() as any
+  fastify.addHook('onRequest', (req: any, reply: any, done: () => void) => {
+    const origin: string | undefined = req.headers['origin']
+
+    if (origin && allowedOrigins.includes(origin)) {
+      reply.header('Access-Control-Allow-Origin', origin)
+      reply.header('Vary', 'Origin')
+      reply.header('Access-Control-Allow-Credentials', 'true')
+      reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+      reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+      reply.header('Access-Control-Expose-Headers', 'Content-Disposition')
+    }
+
+    if (req.method === 'OPTIONS') {
+      reply.header('Access-Control-Max-Age', '86400')
+      reply.code(204).send()
+      return
+    }
+
+    done()
+  })
+
+  console.log('[Bootstrap] CORS configurado para:', allowedOrigins)
 
   // Plugins Fastify — carregados dinamicamente para evitar erros de import ESM
   try {
