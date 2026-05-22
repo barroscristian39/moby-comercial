@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { PasswordPolicySchema } from '@moby/shared'
-import { Building2, Loader2, Plus, Search, ShieldCheck } from 'lucide-react'
+import { AlertCircle, Building2, Loader2, Plus, Search, ShieldCheck } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -49,6 +49,7 @@ const statusVariantMap = {
 export default function TenantsPage() {
   const [busca, setBusca] = useState('')
   const [modalAberto, setModalAberto] = useState(false)
+  const [erroModal, setErroModal] = useState<string | null>(null)
 
   const { data, isLoading, isError, refetch } = useTenants({ page: 1, perPage: 100 })
   const createTenant = useCreateTenant()
@@ -87,10 +88,12 @@ export default function TenantsPage() {
       adminEmail: '',
       adminPassword: '',
     })
+    setErroModal(null)
     setModalAberto(true)
   }
 
   async function salvar(data: TenantFormData) {
+    setErroModal(null)
     try {
       await createTenant.mutateAsync({
         name: data.name,
@@ -108,8 +111,9 @@ export default function TenantsPage() {
 
       await refetch()
       setModalAberto(false)
-    } catch {
-      // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message ?? 'Erro ao criar ambiente'
+      setErroModal(msg)
     }
   }
 
@@ -208,7 +212,7 @@ export default function TenantsPage() {
         </p>
       </div>
 
-      <Dialog open={modalAberto} onOpenChange={setModalAberto}>
+      <Dialog open={modalAberto} onOpenChange={(open) => { setModalAberto(open); if (!open) setErroModal(null) }}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Novo Ambiente</DialogTitle>
@@ -286,6 +290,13 @@ export default function TenantsPage() {
                 )}
               </div>
             </div>
+
+            {erroModal && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{erroModal}</span>
+              </div>
+            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setModalAberto(false)}>
