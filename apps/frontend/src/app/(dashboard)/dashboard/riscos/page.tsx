@@ -89,6 +89,13 @@ const riscoSchema = z.object({
 })
 
 type RiscoFormData = z.infer<typeof riscoSchema>
+type ValidationErrorDetail = { field: string; message: string }
+type ValidationErrorPayload = {
+  error?: {
+    code?: string
+    details?: ValidationErrorDetail[]
+  }
+}
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -171,13 +178,13 @@ export default function RiscosPage() {
 
   function applyValidationErrors(error: unknown) {
     if (!error || typeof error !== 'object' || !('response' in error)) return false
-    const axiosError = error as AxiosError
-    const apiError = axiosError.response?.data?.error as any
+    const axiosError = error as AxiosError<ValidationErrorPayload>
+    const apiError = axiosError.response?.data?.error
     if (!apiError || apiError.code !== 'VALIDATION_ERROR' || !Array.isArray(apiError.details)) {
       return false
     }
 
-    apiError.details.forEach((detail: any) => {
+    apiError.details.forEach((detail) => {
       const field = backendFieldMap[detail.field]
       if (field) {
         form.setError(field, {
