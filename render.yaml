@@ -8,7 +8,6 @@ services:
     dockerContext: .
     autoDeployTrigger: commit
     healthCheckPath: /api/setup/status
-    preDeployCommand: pnpm --filter backend prisma:deploy
     buildFilter:
       paths:
         - apps/backend/**

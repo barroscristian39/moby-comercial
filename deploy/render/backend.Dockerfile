@@ -57,4 +57,4 @@ COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 
 EXPOSE 3001
 
-CMD ["node", "apps/backend/dist/src/main.js"]
+CMD ["sh", "-c", "cd apps/backend && pnpm prisma:deploy && node dist/main.js"]
