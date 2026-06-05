@@ -12,10 +12,15 @@ export class ZodPipe<T> implements PipeTransform {
         field: e.path.join('.'),
         message: e.message,
       }))
+      const firstDetail = errors[0]
+      const message = firstDetail
+        ? `Dados inválidos: ${firstDetail.field} ${firstDetail.message}`
+        : 'Dados inválidos'
+
       throw new BadRequestException({
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'Dados inválidos',
+          message,
           statusCode: 400,
           details: errors,
         },

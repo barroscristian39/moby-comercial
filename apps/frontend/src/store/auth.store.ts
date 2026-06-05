@@ -27,13 +27,46 @@ export interface AuthAccessContext {
   }>
 }
 
+export interface PendingLoginVerification {
+  challengeId: string
+  email: string
+  deliveryHint: string
+  message: string
+}
+
+export type AuthLoginResult =
+  | { status: 'authenticated'; user: AuthUser }
+  | { status: 'verification_required'; verification: PendingLoginVerification }
+
 interface AuthState {
   user: AuthUser | null
   accessContext: AuthAccessContext | null
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<AuthUser>
+  login: (email: string, password: string) => Promise<AuthLoginResult>
+  verifyLoginCode: (challengeId: string, code: string) => Promise<AuthUser>
+  resendLoginCode: (challengeId: string) => Promise<PendingLoginVerification>
   logout: () => Promise<void>
   hydrate: () => void
+}
+
+function persistAuthenticatedSession(
+  set: (state: Partial<AuthState>) => void,
+  payload: {
+    accessToken: string
+    user: AuthUser
+    context: AuthAccessContext
+  },
+) {
+  sessionStorage.setItem('access_token', payload.accessToken)
+  sessionStorage.setItem('user_id', payload.user.id)
+  sessionStorage.setItem('auth_user', JSON.stringify(payload.user))
+  sessionStorage.setItem('access_context', JSON.stringify(payload.context))
+
+  // Cookie não-HttpOnly para o middleware do Next.js conseguir detectar a sessão.
+  // O refresh_token seguro (HttpOnly) é setado pelo backend; este é apenas um sinal de rota.
+  document.cookie = 'has_session=1; path=/; SameSite=Lax'
+
+  set({ user: payload.user, accessContext: payload.context, isAuthenticated: true })
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -56,19 +89,42 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   async login(email, password) {
     const { data } = await api.post('/auth/login', { email, password })
-    const { accessToken, user, context } = data.data
+    const payload = data.data
 
-    sessionStorage.setItem('access_token', accessToken)
-    sessionStorage.setItem('user_id', user.id)
-    sessionStorage.setItem('auth_user', JSON.stringify(user))
-    sessionStorage.setItem('access_context', JSON.stringify(context))
+    if (payload.requiresTwoFactor) {
+      return {
+        status: 'verification_required',
+        verification: {
+          challengeId: payload.challengeId,
+          email: payload.email,
+          deliveryHint: payload.deliveryHint,
+          message: payload.message,
+        },
+      }
+    }
 
-    // Cookie não-HttpOnly para o middleware do Next.js conseguir detectar a sessão.
-    // O refresh_token seguro (HttpOnly) é setado pelo backend; este é apenas um sinal de rota.
-    document.cookie = 'has_session=1; path=/; SameSite=Lax'
+    persistAuthenticatedSession(set, payload)
+    return { status: 'authenticated', user: payload.user }
+  },
 
-    set({ user, accessContext: context, isAuthenticated: true })
-    return user
+  async verifyLoginCode(challengeId, code) {
+    const { data } = await api.post('/auth/login/verify', { challengeId, code })
+    const payload = data.data
+
+    persistAuthenticatedSession(set, payload)
+    return payload.user
+  },
+
+  async resendLoginCode(challengeId) {
+    const { data } = await api.post('/auth/login/resend', { challengeId })
+    const payload = data.data
+
+    return {
+      challengeId: payload.challengeId,
+      email: payload.email,
+      deliveryHint: payload.deliveryHint,
+      message: payload.message,
+    }
   },
 
   async logout() {

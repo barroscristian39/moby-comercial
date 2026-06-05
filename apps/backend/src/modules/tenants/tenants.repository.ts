@@ -94,9 +94,15 @@ export class TenantsRepository {
   }
 
   async deactivateTenantUsers(tenantId: string) {
-    await this.prisma.refreshToken.updateMany({
-      where: { user: { tenantId } },
-      data: { revokedAt: new Date() },
-    })
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({
+        where: { user: { tenantId } },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.user.updateMany({
+        where: { tenantId, deletedAt: null },
+        data: { sessionVersion: { increment: 1 } },
+      }),
+    ])
   }
 }

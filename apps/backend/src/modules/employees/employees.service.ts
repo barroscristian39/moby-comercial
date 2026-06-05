@@ -8,6 +8,7 @@ import { EmployeesRepository } from './employees.repository'
 import { CreateEmployeeDto } from './dto/create-employee.dto'
 import { UpdateEmployeeDto } from './dto/update-employee.dto'
 import { EmployeeEntity } from './entities/employee.entity'
+import { EmployeeListEntity } from './entities/employee-list.entity'
 import { RequestUser, Role, PaginationDto } from '@moby/shared'
 
 type EmployeeAccessScope = {
@@ -50,7 +51,7 @@ export class EmployeesService {
     )
 
     return {
-      data: items.map(this.mapToEntity),
+      data: items.map((employee) => this.mapToListEntity(employee)),
       meta: {
         total,
         page: pagination.page,
@@ -324,5 +325,34 @@ export class EmployeesService {
       createdAt: employee.createdAt,
       updatedAt: employee.updatedAt,
     }
+  }
+
+  private mapToListEntity(employee: any): EmployeeListEntity {
+    return {
+      id: employee.id,
+      companyId: employee.companyId,
+      unitId: employee.unitId,
+      sectorId: employee.sectorId,
+      jobFunctionId: employee.jobFunctionId,
+      name: employee.name,
+      cpfMasked: this.maskCpf(employee.cpf),
+      registration: employee.registration,
+      admissionDate: employee.admissionDate,
+      dismissalDate: employee.dismissalDate,
+      isActive: employee.isActive,
+      createdAt: employee.createdAt,
+      updatedAt: employee.updatedAt,
+    }
+  }
+
+  private maskCpf(value: string | null | undefined) {
+    if (!value) return null
+
+    const digits = value.replace(/\D/g, '')
+    if (digits.length !== 11) {
+      return '***.***.***-**'
+    }
+
+    return `${digits.slice(0, 3)}.***.***-${digits.slice(-2)}`
   }
 }

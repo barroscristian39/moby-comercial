@@ -3,6 +3,21 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { AppModule } from './app.module'
 
+function buildAllowedOrigins() {
+  const configuredOrigins = (process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+
+  return new Set([
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:3002',
+    'http://127.0.0.1:3002',
+    ...configuredOrigins,
+  ])
+}
+
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
@@ -46,12 +61,19 @@ async function bootstrap() {
   }
 
   // CORS — habilitado via @fastify/cors antes de qualquer guard NestJS
+  const allowedOrigins = buildAllowedOrigins()
+  const isDevelopment = process.env.NODE_ENV !== 'production'
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      ...(process.env.FRONTEND_URL || '').split(',').map((o) => o.trim()).filter(Boolean),
-    ],
+    origin: isDevelopment
+      ? true
+      : (origin, callback) => {
+          if (!origin || allowedOrigins.has(origin)) {
+            callback(null, true)
+            return
+          }
+
+          callback(new Error(`Origin ${origin} not allowed by CORS`), false)
+        },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -76,6 +98,22 @@ async function bootstrap() {
     } catch (e) {
       console.warn('[Bootstrap] Falha ao configurar Swagger:', e.message)
     }
+  }
+
+  // Redirecionar root `/` para o frontend (útil em dev)
+  try {
+    const fastifyInstance = app.getHttpAdapter().getInstance()
+    fastifyInstance.get('/', (_req: any, reply: any) => {
+      const target = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',')[0].trim()
+      try {
+        return reply.redirect(target)
+      } catch (e: any) {
+        return reply.status(302).header('Location', target).send()
+      }
+    })
+    console.log('[Bootstrap] rota / redireciona para frontend')
+  } catch (e: any) {
+    console.warn('[Bootstrap] Falha ao registrar redirect /:', e?.message)
   }
 
   const port = process.env.PORT || 3001

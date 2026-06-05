@@ -90,10 +90,18 @@ ALTER TABLE "employees" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "employees" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "risks" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "risks" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "accidents" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "accidents" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "function_templates" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "function_templates" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "generated_documents" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "generated_documents" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "accident_templates" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "accident_templates" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "accident_generated_documents" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "accident_generated_documents" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "accident_evidences" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "accident_evidences" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "document_audit_logs" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "document_audit_logs" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;
@@ -106,6 +114,8 @@ ALTER TABLE "user_unit_access" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "user_unit_access" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "refresh_tokens" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "refresh_tokens" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "login_verification_codes" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "login_verification_codes" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "password_reset_tokens" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "password_reset_tokens" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "epi_items" ENABLE ROW LEVEL SECURITY;
@@ -124,8 +134,12 @@ DROP POLICY IF EXISTS job_functions_tenant_isolation ON "job_functions";
 DROP POLICY IF EXISTS function_units_tenant_isolation ON "function_units";
 DROP POLICY IF EXISTS employees_tenant_isolation ON "employees";
 DROP POLICY IF EXISTS risks_tenant_isolation ON "risks";
+DROP POLICY IF EXISTS accidents_tenant_isolation ON "accidents";
 DROP POLICY IF EXISTS function_templates_tenant_isolation ON "function_templates";
 DROP POLICY IF EXISTS generated_documents_tenant_isolation ON "generated_documents";
+DROP POLICY IF EXISTS accident_templates_tenant_isolation ON "accident_templates";
+DROP POLICY IF EXISTS accident_generated_documents_tenant_isolation ON "accident_generated_documents";
+DROP POLICY IF EXISTS accident_evidences_tenant_isolation ON "accident_evidences";
 DROP POLICY IF EXISTS document_audit_logs_tenant_isolation ON "document_audit_logs";
 DROP POLICY IF EXISTS users_read_internal ON "users";
 DROP POLICY IF EXISTS users_tenant_isolation ON "users";
@@ -138,6 +152,8 @@ DROP POLICY IF EXISTS user_unit_access_read_internal ON "user_unit_access";
 DROP POLICY IF EXISTS user_unit_access_tenant_isolation ON "user_unit_access";
 DROP POLICY IF EXISTS refresh_tokens_read_internal ON "refresh_tokens";
 DROP POLICY IF EXISTS refresh_tokens_tenant_isolation ON "refresh_tokens";
+DROP POLICY IF EXISTS login_verification_codes_read_internal ON "login_verification_codes";
+DROP POLICY IF EXISTS login_verification_codes_tenant_isolation ON "login_verification_codes";
 DROP POLICY IF EXISTS password_reset_tokens_read_internal ON "password_reset_tokens";
 DROP POLICY IF EXISTS password_reset_tokens_tenant_isolation ON "password_reset_tokens";
 DROP POLICY IF EXISTS epi_items_tenant_isolation ON "epi_items";
@@ -241,6 +257,17 @@ CREATE POLICY risks_tenant_isolation ON "risks"
     OR "tenant_id" = public.moby_current_tenant_id()
   );
 
+CREATE POLICY accidents_tenant_isolation ON "accidents"
+  FOR ALL TO moby_app
+  USING (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  )
+  WITH CHECK (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  );
+
 CREATE POLICY function_templates_tenant_isolation ON "function_templates"
   FOR ALL TO moby_app
   USING (
@@ -253,6 +280,39 @@ CREATE POLICY function_templates_tenant_isolation ON "function_templates"
   );
 
 CREATE POLICY generated_documents_tenant_isolation ON "generated_documents"
+  FOR ALL TO moby_app
+  USING (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  )
+  WITH CHECK (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  );
+
+CREATE POLICY accident_templates_tenant_isolation ON "accident_templates"
+  FOR ALL TO moby_app
+  USING (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  )
+  WITH CHECK (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  );
+
+CREATE POLICY accident_generated_documents_tenant_isolation ON "accident_generated_documents"
+  FOR ALL TO moby_app
+  USING (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  )
+  WITH CHECK (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  );
+
+CREATE POLICY accident_evidences_tenant_isolation ON "accident_evidences"
   FOR ALL TO moby_app
   USING (
     public.moby_is_super_admin()
@@ -432,6 +492,40 @@ CREATE POLICY refresh_tokens_tenant_isolation ON "refresh_tokens"
       SELECT 1
       FROM "users"
       WHERE "users"."id" = "refresh_tokens"."user_id"
+        AND "users"."tenant_id" = public.moby_current_tenant_id()
+    )
+  );
+
+CREATE POLICY login_verification_codes_read_internal ON "login_verification_codes"
+  FOR SELECT TO moby_app
+  USING (
+    public.moby_is_auth_service()
+    OR public.moby_is_super_admin()
+    OR EXISTS (
+      SELECT 1
+      FROM "users"
+      WHERE "users"."id" = "login_verification_codes"."user_id"
+        AND "users"."tenant_id" = public.moby_current_tenant_id()
+    )
+  );
+
+CREATE POLICY login_verification_codes_tenant_isolation ON "login_verification_codes"
+  FOR ALL TO moby_app
+  USING (
+    public.moby_is_super_admin()
+    OR EXISTS (
+      SELECT 1
+      FROM "users"
+      WHERE "users"."id" = "login_verification_codes"."user_id"
+        AND "users"."tenant_id" = public.moby_current_tenant_id()
+    )
+  )
+  WITH CHECK (
+    public.moby_is_super_admin()
+    OR EXISTS (
+      SELECT 1
+      FROM "users"
+      WHERE "users"."id" = "login_verification_codes"."user_id"
         AND "users"."tenant_id" = public.moby_current_tenant_id()
     )
   );

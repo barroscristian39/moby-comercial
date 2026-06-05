@@ -7,6 +7,8 @@ const buildAllowedOrigins = () =>
       ...(process.env.FRONTEND_URL || '').split(',').map((o) => o.trim()).filter(Boolean),
       'http://localhost:3000',
       'http://127.0.0.1:3000',
+      'http://localhost:3002',
+      'http://127.0.0.1:3002',
     ]),
   )
 
@@ -15,8 +17,9 @@ export class CorsMiddleware implements NestMiddleware {
   use(req: any, res: any, next: () => void) {
     const origin: string | undefined = req.headers['origin']
     const allowedOrigins = buildAllowedOrigins()
+    const isDevelopment = process.env.NODE_ENV !== 'production'
 
-    if (origin && allowedOrigins.includes(origin)) {
+    if (origin && (isDevelopment || allowedOrigins.includes(origin))) {
       res.setHeader('Access-Control-Allow-Origin', origin)
       res.setHeader('Vary', 'Origin')
       res.setHeader('Access-Control-Allow-Credentials', 'true')

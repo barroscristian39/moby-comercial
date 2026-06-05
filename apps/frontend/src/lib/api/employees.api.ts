@@ -21,6 +21,22 @@ export interface Employee {
   createdAt: string
 }
 
+export interface EmployeeListItem {
+  id: string
+  companyId: string
+  unitId: string
+  sectorId: string | null
+  jobFunctionId: string
+  name: string
+  cpfMasked: string | null
+  registration: string | null
+  admissionDate: string
+  dismissalDate: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface CreateEmployeeDto {
   companyId: string
   unitId: string
@@ -52,7 +68,7 @@ export const employeesApi = {
     isActive?: boolean
   }) => {
     const { data } = await api.get('/employees', { params })
-    return data as PaginatedResponse<Employee>
+    return data as PaginatedResponse<EmployeeListItem>
   },
 
   findOne: async (id: string) => {

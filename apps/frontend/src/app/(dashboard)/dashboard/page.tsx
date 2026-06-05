@@ -4,20 +4,18 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
-  Activity,
   AlertTriangle,
   BarChart3,
   Bell,
   Briefcase,
   Building2,
-  CalendarDays,
   CalendarClock,
+  ChevronDown,
   ChevronRight,
   ClipboardCheck,
   ClipboardList,
   FileText,
   GraduationCap,
-  Grid2x2,
   HardHat,
   Home,
   Layers,
@@ -28,7 +26,6 @@ import {
   MapPin,
   Menu,
   MoreHorizontal,
-  Plus,
   RefreshCw,
   Settings,
   ShieldAlert,
@@ -42,9 +39,11 @@ import { NotificationsModal } from '@/components/notifications/notifications-mod
 import { Topbar } from '@/components/layout/topbar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import loginLogo from '@/assets/brand/login-logo.png'
+import companySelectLogoHorizontal from '@/assets/brand/company-select-logo-horizontal.png'
 import { useAuthStore } from '@/store/auth.store'
 import { useCompanyStore } from '@/store/company.store'
+
+// ─── Tipos ──────────────────────────────────────────────────────────────────
 
 type MetricCard = {
   label: string
@@ -64,18 +63,6 @@ type QuickAction = {
   panel?: 'menu' | 'quick'
 }
 
-type PendingItem = {
-  badgeClass: string
-  badgeLabel: string
-  title: string
-  description: string
-  icon: LucideIcon
-  href: string
-  iconClass: string
-  iconBg: string
-  permission?: string
-}
-
 type MenuAction = {
   label: string
   href: string
@@ -83,15 +70,24 @@ type MenuAction = {
   permission?: string
 }
 
+type BottomNavItem = {
+  label: string
+  icon: LucideIcon
+  href: string
+  isMenu?: boolean
+}
+
+// ─── Dados estáticos ────────────────────────────────────────────────────────
+
 const KPI_CARDS: MetricCard[] = [
-  { label: 'Unidades ativas', value: 0, icon: Building2, iconClass: 'text-primary', iconBg: 'bg-primary/10', href: '/dashboard/unidades', permission: 'units.read' },
-  { label: 'Colaboradores', value: 0, icon: Users, iconClass: 'text-primary', iconBg: 'bg-primary/10', href: '/dashboard/colaboradores', permission: 'employees.read' },
-  { label: 'ASOs Emitidos', value: 0, icon: Stethoscope, iconClass: 'text-success', iconBg: 'bg-success/10', href: '/dashboard/exames', permission: 'exams.read' },
-  { label: 'Exames Complementares', value: 0, icon: ClipboardList, iconClass: 'text-success', iconBg: 'bg-success/10', href: '/dashboard/exames', permission: 'exams.read' },
-  { label: 'Acidentes com afastamento', value: 0, icon: AlertTriangle, iconClass: 'text-destructive', iconBg: 'bg-destructive/10', href: '/dashboard/acidentes', permission: 'accidents.read' },
-  { label: 'Acidentes sem afastamento', value: 0, icon: AlertTriangle, iconClass: 'text-warning', iconBg: 'bg-warning/10', href: '/dashboard/acidentes', permission: 'accidents.read' },
-  { label: 'EPIs vencidos', value: 0, icon: HardHat, iconClass: 'text-warning', iconBg: 'bg-warning/10', href: '/dashboard/epi', permission: 'epi.read' },
-  { label: 'Riscos críticos', value: 0, icon: ShieldAlert, iconClass: 'text-destructive', iconBg: 'bg-destructive/10', href: '/dashboard/riscos', permission: 'risks.read' },
+  { label: 'Unidades ativas', value: 0, icon: Building2, iconClass: 'text-blue-500', iconBg: 'bg-blue-50', href: '/dashboard/unidades', permission: 'units.read' },
+  { label: 'Colaboradores', value: 0, icon: Users, iconClass: 'text-blue-500', iconBg: 'bg-blue-50', href: '/dashboard/colaboradores', permission: 'employees.read' },
+  { label: 'ASOs Emitidos', value: 0, icon: Stethoscope, iconClass: 'text-green-500', iconBg: 'bg-green-50', href: '/dashboard/exames', permission: 'exams.read' },
+  { label: 'Exames Complementares', value: 0, icon: ClipboardList, iconClass: 'text-green-500', iconBg: 'bg-green-50', href: '/dashboard/exames', permission: 'exams.read' },
+  { label: 'Acidentes com afastamento', value: 0, icon: AlertTriangle, iconClass: 'text-red-500', iconBg: 'bg-red-50', href: '/dashboard/acidentes', permission: 'accidents.read' },
+  { label: 'Acidentes sem afastamento', value: 0, icon: AlertTriangle, iconClass: 'text-orange-500', iconBg: 'bg-orange-50', href: '/dashboard/acidentes', permission: 'accidents.read' },
+  { label: 'EPIs vencidos', value: 0, icon: HardHat, iconClass: 'text-orange-500', iconBg: 'bg-orange-50', href: '/dashboard/epi', permission: 'epi.read' },
+  { label: 'Riscos críticos', value: 0, icon: ShieldAlert, iconClass: 'text-red-500', iconBg: 'bg-red-50', href: '/dashboard/riscos', permission: 'risks.read' },
 ]
 
 const QUICK_ACTIONS: QuickAction[] = [
@@ -103,42 +99,6 @@ const QUICK_ACTIONS: QuickAction[] = [
   { label: 'Relatórios', icon: BarChart3, href: '/dashboard/relatorios', permission: 'reports.read' },
   { label: 'EPI', icon: HardHat, href: '/dashboard/epi', permission: 'epi.read' },
   { label: 'Mais ações', icon: MoreHorizontal, panel: 'menu' },
-]
-
-const PENDING_ITEMS: PendingItem[] = [
-  {
-    title: 'ASO periódico',
-    description: 'Vence em 7 dias',
-    icon: AlertTriangle,
-    href: '/dashboard/exames',
-    iconClass: 'text-rose-500',
-    iconBg: 'bg-rose-50',
-    badgeClass: 'bg-rose-50 text-rose-600',
-    badgeLabel: '5',
-    permission: 'exams.read',
-  },
-  {
-    title: 'Treinamento NR-35',
-    description: 'Vence em 15 dias',
-    icon: AlertTriangle,
-    href: '/dashboard/treinamentos',
-    iconClass: 'text-amber-500',
-    iconBg: 'bg-amber-50',
-    badgeClass: 'bg-amber-50 text-amber-600',
-    badgeLabel: '3',
-    permission: 'trainings.read',
-  },
-  {
-    title: 'Exame toxicológico',
-    description: 'Vence em 20 dias',
-    icon: ClipboardList,
-    href: '/dashboard/exames',
-    iconClass: 'text-orange-500',
-    iconBg: 'bg-orange-50',
-    badgeClass: 'bg-orange-50 text-orange-600',
-    badgeLabel: '2',
-    permission: 'exams.read',
-  },
 ]
 
 const MOBILE_MENU_ACTIONS: MenuAction[] = [
@@ -158,24 +118,92 @@ const MOBILE_MENU_ACTIONS: MenuAction[] = [
 ]
 
 const ACOES_STATUS = [
-  { label: 'À Fazer', pct: 0, quantidade: 0, color: 'bg-primary' },
+  { label: 'A Fazer', pct: 0, quantidade: 0, color: 'bg-primary' },
   { label: 'Em andamento', pct: 0, quantidade: 0, color: 'bg-warning' },
   { label: 'Atrasada', pct: 0, quantidade: 0, color: 'bg-destructive' },
   { label: 'Concluída', pct: 0, quantidade: 0, color: 'bg-success' },
 ]
 
+const BOTTOM_NAV: BottomNavItem[] = [
+  { label: 'Dashboard', href: '/dashboard', icon: Home },
+  { label: 'Empresas', href: '/dashboard/empresas', icon: Building2 },
+  { label: 'Riscos', href: '/dashboard/riscos', icon: ShieldAlert },
+  { label: 'Controles', href: '/dashboard/controles', icon: ClipboardList },
+  { label: 'Mais', href: '/dashboard', icon: MoreHorizontal, isMenu: true },
+]
+
+// ─── Ilustração do card hero ─────────────────────────────────────────────────
+
+function HeroIllustration() {
+  return (
+    <svg viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[96px] h-[96px] shrink-0">
+      {/* Glow de fundo */}
+      <ellipse cx="72" cy="62" rx="30" ry="30" fill="rgba(147,197,253,0.12)" />
+
+      {/* Sombra do clipboard */}
+      <rect x="13" y="24" width="52" height="66" rx="8" fill="#000d2e" opacity="0.25"
+        transform="rotate(-8 39 57)" />
+
+      {/* Corpo do clipboard */}
+      <rect x="11" y="22" width="52" height="66" rx="8" fill="#3b82f6"
+        transform="rotate(-8 37 55)" />
+      <rect x="13" y="23" width="49" height="63" rx="7" fill="#60a5fa"
+        transform="rotate(-8 37 55)" />
+
+      {/* Clip no topo */}
+      <rect x="26" y="15" width="26" height="15" rx="5" fill="#2563eb"
+        transform="rotate(-8 37 55)" />
+      <rect x="29" y="17" width="20" height="10" rx="4" fill="#93c5fd"
+        transform="rotate(-8 37 55)" />
+
+      {/* Linhas de checklist — grupo rotacionado junto com o clipboard */}
+      <g transform="rotate(-8 37 55)">
+        {/* Linha 1 — check */}
+        <polyline points="18,40 22,45 31,35" stroke="white" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <rect x="35" y="38" width="20" height="3" rx="1.5" fill="rgba(255,255,255,0.65)" />
+
+        {/* Linha 2 — check */}
+        <polyline points="18,54 22,59 31,49" stroke="white" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <rect x="35" y="52" width="16" height="3" rx="1.5" fill="rgba(255,255,255,0.65)" />
+
+        {/* Linha 3 — parcial (sem check) */}
+        <rect x="18" y="66" width="28" height="3" rx="1.5" fill="rgba(255,255,255,0.35)" />
+      </g>
+
+      {/* Escudo — navy */}
+      <path d="M63 50 L87 55 L87 76 Q87 92 75 97 Q63 92 63 76 Z"
+        fill="#0b1d4a" />
+      {/* Borda sutil do escudo */}
+      <path d="M64 52 L86 57 L86 76 Q86 91 75 96"
+        stroke="#3b82f6" strokeWidth="0.6" fill="none" opacity="0.4" />
+
+      {/* Badge do escudo */}
+      <circle cx="75" cy="74" r="12" fill="#1d4ed8" />
+      <circle cx="75" cy="74" r="10" fill="#2563eb" />
+
+      {/* Checkmark do escudo */}
+      <polyline points="70,74 74,79 82,68" stroke="white" strokeWidth="2.8"
+        strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  )
+}
+
+// ─── Componente principal ───────────────────────────────────────────────────
+
 export default function DashboardPage() {
-  const router = useRouter()
-  const user = useAuthStore((s) => s.user)
+  const router        = useRouter()
+  const user          = useAuthStore((s) => s.user)
   const accessContext = useAuthStore((s) => s.accessContext)
-  const logout = useAuthStore((s) => s.logout)
+  const logout        = useAuthStore((s) => s.logout)
   const activeCompany = useCompanyStore((s) => s.activeCompany)
   const [mobilePanel, setMobilePanel] = useState<null | 'menu' | 'quick'>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  const permissions = new Set(accessContext?.available_permissions ?? [])
-  const nomeUsuario = user?.name?.split(' ')[0] ?? 'Cristian'
-  const nomeEmpresa = activeCompany?.tradeName ?? activeCompany?.name ?? 'MOBY'
+  const permissions  = new Set(accessContext?.available_permissions ?? [])
+  const nomeUsuario  = user?.name?.split(' ')[0] ?? 'Cristian'
+  const nomeEmpresa  = (activeCompany?.tradeName ?? activeCompany?.name ?? 'MOBY').toUpperCase()
 
   function canAccess(permission?: string) {
     if (!permission) return true
@@ -189,452 +217,324 @@ export default function DashboardPage() {
   }
 
   function handleQuickAction(action: QuickAction) {
-    if (action.panel) {
-      setMobilePanel(action.panel)
-      return
-    }
-
-    if (action.href) {
-      pushAndClose(action.href)
-    }
-  }
-
-  function scrollToPendingSection() {
-    setMobilePanel(null)
-    document.getElementById('mobile-pending-section')?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    })
+    if (action.panel) { setMobilePanel(action.panel); return }
+    if (action.href) pushAndClose(action.href)
   }
 
   async function handleLogout() {
     if (isLoggingOut) return
-
     setIsLoggingOut(true)
-
-    try {
-      await logout()
-    } finally {
-      router.replace('/login')
-    }
+    try { await logout() } finally { router.replace('/login') }
   }
 
-  const visibleMetrics = KPI_CARDS.filter((card) => canAccess(card.permission))
-  const visibleQuickActions = QUICK_ACTIONS.filter((action) => canAccess(action.permission))
-  const visiblePendingItems = PENDING_ITEMS.filter((item) => canAccess(item.permission))
-  const visibleMenuActions = MOBILE_MENU_ACTIONS.filter((action) => canAccess(action.permission))
+  const visibleMetrics     = KPI_CARDS.filter((c) => canAccess(c.permission))
+  const visibleQuickActions = QUICK_ACTIONS.filter((a) => canAccess(a.permission))
+  const visibleMenuActions  = MOBILE_MENU_ACTIONS.filter((a) => canAccess(a.permission))
 
   return (
     <>
-      <div className="md:hidden">
-        <div className="min-h-screen bg-[#fbfcff] text-slate-900">
-          <div className="w-full px-[clamp(1rem,4vw,1.65rem)] pb-32 pt-[calc(env(safe-area-inset-top)+1.4rem)]">
-            <div className="mb-8 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setMobilePanel('menu')}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#11224c] transition-colors hover:bg-slate-100/80"
-                aria-label="Abrir menu"
-              >
-                <Menu className="h-6 w-6" />
-              </button>
+      {/* ══════════════════════════════════════════════════
+          LAYOUT MOBILE — visível apenas em telas < md
+      ══════════════════════════════════════════════════ */}
+      <div className="md:hidden min-h-screen bg-[#EDF0F7] flex flex-col">
 
-              <NotificationsModal
-                triggerClassName="h-11 w-11 rounded-full text-[#11224c] transition-colors hover:bg-slate-100/80"
-                bellClassName="h-6 w-6"
-                badgeClassName="border-0 bg-red-500 text-white shadow-none"
-                fallbackBadgeText="3"
-              />
+        {/* ── Header ─────────────────────────────────────── */}
+        <header className="flex items-center justify-between px-5 py-3 bg-white shadow-[0_1px_0_rgba(0,0,0,0.06),0_4px_16px_rgba(15,23,42,0.08)] z-10">
+          <button
+            type="button"
+            onClick={() => setMobilePanel('menu')}
+            className="h-10 w-10 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-50"
+            aria-label="Abrir menu"
+          >
+            <Menu className="h-[22px] w-[22px]" />
+          </button>
+
+          <Image
+            src={companySelectLogoHorizontal}
+            alt="MOBY Gestão em Segurança do Trabalho"
+            priority
+            className="h-[52px] w-auto"
+          />
+
+          <NotificationsModal
+            triggerClassName="relative h-10 w-10 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-50"
+            bellClassName="h-[24px] w-[24px]"
+            badgeClassName="absolute -top-1 -right-1 h-[20px] min-w-[20px] rounded-full border-2 border-white bg-red-500 text-white text-[10px] font-bold shadow-none leading-none flex items-center justify-center"
+            fallbackBadgeText="3"
+          />
+        </header>
+
+        {/* ── Seletor de empresa ──────────────────────────── */}
+        <div className="flex justify-end items-center px-5 py-2 bg-white border-t border-slate-100/80 shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
+          <button
+            type="button"
+            onClick={() => router.push('/selecionar-empresa')}
+            className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
+          >
+            <Building2 className="h-4 w-4 text-slate-400" />
+            <span className="text-[0.82rem] font-semibold text-slate-700">{nomeEmpresa}</span>
+            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+          </button>
+        </div>
+
+        {/* ── Conteúdo com scroll ─────────────────────────── */}
+        <div className="flex-1 overflow-y-auto px-4 pt-3 pb-32 space-y-2.5">
+
+          {/* Card hero */}
+          <div className="relative rounded-2xl overflow-hidden bg-[#0d1f4e] px-5 py-4 shadow-[0_4px_20px_rgba(13,31,78,0.3)]">
+            {/* Decorações de fundo */}
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-1/2">
+              <div className="absolute right-4 top-3 h-24 w-24 rounded-full border border-blue-400/20" />
+              <div className="absolute right-12 top-8 h-14 w-14 rounded-full bg-blue-500/10" />
             </div>
 
-            <div className="mb-7">
-              <h1 className="text-[2.35rem] font-semibold tracking-[-0.09em] text-[#11224c]">
-                Olá, {nomeUsuario}!
-              </h1>
-              <p className="mt-1 text-[1.08rem] text-slate-500">
-                Bem-vindo ao Moby 👋
-              </p>
+            <div className="relative z-10 flex items-center gap-3">
+              <div className="flex-1">
+                <h1 className="text-[0.95rem] font-bold text-white leading-snug">
+                  Olá, {nomeUsuario}!
+                </h1>
+                <p className="mt-1.5 text-[0.78rem] text-white/70 leading-snug">
+                  Aqui estão alguns dos dados mais importantes para o gerenciamento de riscos ocupacionais da empresa.
+                </p>
+              </div>
+              <HeroIllustration />
             </div>
-
-            <button
-              type="button"
-              onClick={() => router.push('/dashboard/riscos')}
-              className="relative mb-8 flex min-h-[132px] w-full items-center gap-4 overflow-hidden rounded-[28px] bg-gradient-to-r from-[#0f48d2] via-[#0d55e6] to-[#0b3cbc] px-5 py-4 text-left shadow-[0_24px_48px_rgba(13,72,210,0.28)]"
-            >
-              <div className="absolute -right-9 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full border border-white/10" />
-              <div className="absolute right-2 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-white/5" />
-
-              <div className="relative z-10 flex h-16 w-16 shrink-0 items-center justify-center">
-                <Image
-                  src={loginLogo}
-                  alt="MOBY"
-                  priority
-                  className="h-auto w-16 drop-shadow-[0_8px_18px_rgba(5,23,67,0.28)]"
-                />
-              </div>
-
-              <div className="relative z-10 min-w-0 flex-1 pr-1">
-                <p className="text-[1.08rem] font-semibold tracking-[-0.05em] text-white">
-                  Sua empresa está segura!
-                </p>
-                <p className="mt-1 text-[0.9rem] leading-5 text-white/82">
-                  Continue acompanhando os indicadores e mantenha tudo em dia.
-                </p>
-              </div>
-
-              <div className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/12 bg-[#0b49d8]/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                <ChevronRight className="h-5 w-5 text-white/95" />
-              </div>
-            </button>
-
-            <section className="mb-8">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-[1.35rem] font-semibold tracking-[-0.08em] text-[#11224c]">
-                  Indicadores
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => router.push('/dashboard/relatorios')}
-                  className="text-[0.96rem] font-medium text-primary"
-                >
-                  Ver todos
-                </button>
-              </div>
-
-              <div className="grid grid-cols-4 gap-[clamp(0.72rem,2.2vw,0.95rem)]">
-                {visibleMetrics.map((card) => {
-                  const Icon = card.icon
-
-                  return (
-                    <button
-                      key={card.label}
-                      type="button"
-                      onClick={() => router.push(card.href)}
-                      className="flex aspect-[0.73] w-full flex-col items-start overflow-hidden rounded-[15px] border border-slate-200/90 bg-white px-[clamp(0.56rem,1.65vw,0.84rem)] py-[clamp(0.76rem,1.9vw,0.98rem)] text-left shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition-transform hover:-translate-y-0.5"
-                    >
-                      <div className={`mb-[clamp(0.54rem,1.45vw,0.72rem)] inline-flex h-[clamp(1.88rem,5vw,2.15rem)] w-[clamp(1.88rem,5vw,2.15rem)] items-center justify-center rounded-[12px] ${card.iconBg}`}>
-                        <Icon className={`h-[clamp(0.88rem,2.35vw,1.08rem)] w-[clamp(0.88rem,2.35vw,1.08rem)] ${card.iconClass}`} />
-                      </div>
-                      <div className="flex min-h-0 w-full flex-1 flex-col items-start">
-                        <p className="min-h-[3rem] w-full overflow-hidden text-left text-[clamp(0.58rem,1.5vw,0.72rem)] leading-[1.16] text-slate-600 break-words [text-wrap:balance]">
-                          {card.label}
-                        </p>
-                        <p className="mt-auto w-full pt-[clamp(0.3rem,0.9vw,0.48rem)] text-left text-[clamp(1.14rem,3.45vw,1.68rem)] font-semibold leading-none tracking-[-0.07em] text-[#11224c]">
-                          {card.value}
-                        </p>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
-
-            <section className="mb-8">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-[1.35rem] font-semibold tracking-[-0.08em] text-[#11224c]">
-                  Ações rápidas
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setMobilePanel('quick')}
-                  className="text-[0.96rem] font-medium text-primary"
-                >
-                  Ver todas
-                </button>
-              </div>
-
-              <div className="grid grid-cols-4 gap-[clamp(0.72rem,2.2vw,0.95rem)]">
-                {visibleQuickActions.map((action) => {
-                  const Icon = action.icon
-
-                  return (
-                    <button
-                      key={action.label}
-                      type="button"
-                      onClick={() => handleQuickAction(action)}
-                      className="flex aspect-[0.9] w-full flex-col items-center justify-start overflow-hidden rounded-[15px] border border-slate-200/90 bg-white px-[clamp(0.46rem,1.4vw,0.7rem)] py-[clamp(0.76rem,1.9vw,0.94rem)] text-center shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition-transform hover:-translate-y-0.5"
-                    >
-                      <div className="mb-[clamp(0.54rem,1.45vw,0.72rem)] flex justify-center">
-                        <div className="flex h-[clamp(1.88rem,5vw,2.15rem)] w-[clamp(1.88rem,5vw,2.15rem)] items-center justify-center rounded-[12px] bg-primary/10">
-                          <Icon className="h-[clamp(0.88rem,2.35vw,1.08rem)] w-[clamp(0.88rem,2.35vw,1.08rem)] text-primary" />
-                        </div>
-                      </div>
-                      <div className="flex min-h-0 w-full flex-1 items-start justify-center">
-                        <p className="min-h-[1.9rem] max-w-[4.5rem] overflow-hidden text-center text-[clamp(0.58rem,1.5vw,0.76rem)] leading-[1.14] text-slate-700 [text-wrap:balance]">
-                          {action.label}
-                        </p>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
-
-            <section id="mobile-pending-section" className="mb-8 scroll-mt-24">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-[1.45rem] font-semibold tracking-[-0.08em] text-[#11224c]">
-                  Pendências importantes
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => router.push('/dashboard/controles')}
-                  className="text-[1.05rem] font-medium text-primary"
-                >
-                  Ver todas
-                </button>
-              </div>
-
-              <div className="overflow-hidden rounded-[28px] border border-slate-200/90 bg-white shadow-[0_16px_32px_rgba(15,23,42,0.05)]">
-                {visiblePendingItems.map((item, index) => {
-                  const Icon = item.icon
-
-                  return (
-                    <button
-                      key={item.title}
-                      type="button"
-                      onClick={() => router.push(item.href)}
-                      className={`flex w-full items-center gap-3 px-4 py-[1.05rem] text-left ${index !== visiblePendingItems.length - 1 ? 'border-b border-slate-100' : ''}`}
-                    >
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] ${item.iconBg}`}>
-                        <Icon className={`h-5 w-5 ${item.iconClass}`} />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[1.02rem] font-medium text-[#11224c]">
-                          {item.title}
-                        </p>
-                        <p className="mt-0.5 text-sm text-slate-500">
-                          {item.description}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className={`flex h-8 min-w-8 items-center justify-center rounded-full px-2.5 text-[0.82rem] font-semibold ${item.badgeClass}`}>
-                          {item.badgeLabel}
-                        </span>
-                        <ChevronRight className="h-4 w-4 text-slate-300" />
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
-
-            <section className="pb-2">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-[1.45rem] font-semibold tracking-[-0.08em] text-[#11224c]">
-                  Atividades recentes
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => router.push('/dashboard/documentos')}
-                  className="text-[1.05rem] font-medium text-primary"
-                >
-                  Ver todas
-                </button>
-              </div>
-
-              <div className="rounded-[30px] border border-dashed border-slate-200 bg-white/85 px-5 py-8 text-center shadow-[0_14px_30px_rgba(15,23,42,0.04)]">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                  <Activity className="h-6 w-6 text-primary" />
-                </div>
-                <p className="text-[1rem] font-medium text-[#11224c]">
-                  Nenhuma atividade recente por aqui.
-                </p>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Assim que houver movimentações no ambiente, elas aparecerão nesta área.
-                </p>
-              </div>
-            </section>
           </div>
 
-          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#eef2f8] bg-white/97 px-5 pb-[calc(env(safe-area-inset-bottom)+0.9rem)] pt-3 shadow-[0_-14px_34px_rgba(15,23,42,0.06)] backdrop-blur-xl">
-            <div className="flex w-full items-end justify-between">
-              <button
-                type="button"
-                onClick={() => router.push('/dashboard')}
-                className="flex flex-col items-center gap-1 text-primary"
-              >
-                <div className="flex h-10 w-10 items-center justify-center">
-                  <Home className="h-5 w-5" />
-                </div>
-                <span className="text-[0.78rem] font-medium">Home</span>
-              </button>
+          {/* Grid de KPIs — 2 colunas */}
+          <div className="grid grid-cols-2 gap-2.5">
+            {visibleMetrics.map((card) => {
+              const Icon = card.icon
+              return (
+                <button
+                  key={card.label}
+                  type="button"
+                  onClick={() => router.push(card.href)}
+                  className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_12px_rgba(15,23,42,0.09)] p-3.5 text-left active:scale-[0.98] transition-transform"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${card.iconBg} shrink-0`}>
+                      <Icon className={`h-[18px] w-[18px] ${card.iconClass}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[0.68rem] text-slate-500 leading-snug">{card.label}</p>
+                      <p className="text-[1.5rem] font-bold text-slate-800 leading-none mt-1">{card.value}</p>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
 
+          {/* Seção Total de Ações */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_12px_rgba(15,23,42,0.09)] overflow-hidden">
+            {/* Cabeçalho da seção */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-3">
+              <h2 className="text-[0.72rem] font-bold uppercase tracking-widest text-slate-700">
+                Total de Ações
+              </h2>
               <button
                 type="button"
                 onClick={() => router.push('/dashboard/controles')}
-                className="flex flex-col items-center gap-1 text-slate-400"
+                className="text-xs font-semibold text-primary flex items-center gap-0.5"
               >
-                <div className="flex h-10 w-10 items-center justify-center">
-                  <CalendarDays className="h-5 w-5" />
-                </div>
-                <span className="text-[0.78rem] font-medium">Agenda</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMobilePanel('quick')}
-                className="-mt-7 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#0f48d2] to-[#154ef0] text-white shadow-[0_20px_36px_rgba(13,72,210,0.32)]"
-                aria-label="Abrir ações rápidas"
-              >
-                <Plus className="h-7 w-7" />
-              </button>
-
-              <button
-                type="button"
-                onClick={scrollToPendingSection}
-                className="flex flex-col items-center gap-1 text-slate-400"
-              >
-                <div className="relative flex h-10 w-10 items-center justify-center">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
-                </div>
-                <span className="text-[0.78rem] font-medium">Notificações</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMobilePanel('menu')}
-                className="flex flex-col items-center gap-1 text-slate-400"
-              >
-                <div className="flex h-10 w-10 items-center justify-center">
-                  <Grid2x2 className="h-5 w-5" />
-                </div>
-                <span className="text-[0.78rem] font-medium">Mais</span>
+                Ver todas <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
+
+            <div className="divide-y divide-slate-100">
+              {ACOES_STATUS.slice(0, 3).map((row) => (
+                <div key={row.label} className="flex items-center gap-3 px-4 py-3">
+                  <span className="w-[88px] text-sm font-semibold text-slate-700 shrink-0">
+                    {row.label}
+                  </span>
+                  <div className="flex-1 h-[6px] bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-slate-200 rounded-full"
+                      style={{ width: `${row.pct}%` }}
+                    />
+                  </div>
+                  <span className="w-4 text-sm text-slate-500 text-right shrink-0">
+                    {row.quantidade}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/dashboard/controles')}
+                    className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 shrink-0 hover:bg-slate-50"
+                  >
+                    <ListTodo className="h-3 w-3" />
+                    Ações
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
+        </div>
 
-          {mobilePanel && (
-            <div className="fixed inset-0 z-40">
-              <button
-                type="button"
-                aria-label="Fechar painel"
-                className="absolute inset-0 bg-[#06163c]/45 backdrop-blur-[2px]"
-                onClick={() => setMobilePanel(null)}
-              />
+        {/* ── Bottom Navigation ───────────────────────────── */}
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-100 px-1 pb-[calc(env(safe-area-inset-bottom)+0.4rem)] pt-2 shadow-[0_-4px_20px_rgba(15,23,42,0.07)]">
+          <div className="flex items-center justify-around">
+            {BOTTOM_NAV.map((item) => {
+              const Icon = item.icon
+              const isActive = !item.isMenu && item.href === '/dashboard'
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    if (item.isMenu) { setMobilePanel('menu'); return }
+                    router.push(item.href)
+                  }}
+                  className={`relative flex flex-col items-center gap-0.5 px-3 py-1 min-w-[52px] ${
+                    isActive ? 'text-primary' : 'text-slate-400'
+                  }`}
+                >
+                  {/* Indicador ativo */}
+                  {isActive && (
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-primary rounded-b-full" />
+                  )}
+                  <Icon className="h-[22px] w-[22px]" />
+                  <span className={`text-[0.62rem] font-medium leading-none ${isActive ? 'text-primary' : 'text-slate-400'}`}>
+                    {item.label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
-              {mobilePanel === 'menu' ? (
-                <div className="absolute inset-y-0 left-0 flex w-[88%] max-w-sm flex-col bg-white px-5 pb-6 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-[0_30px_80px_rgba(15,23,42,0.24)]">
-                  <div className="mb-5 flex items-center justify-between">
-                    <div>
-                      <p className="text-[1.35rem] font-semibold tracking-[-0.06em] text-[#11224c]">
-                        Navegacao
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        Acesse os módulos do seu ambiente.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setMobilePanel(null)}
-                      className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500"
-                      aria-label="Fechar menu"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
+        {/* ── Overlay do menu lateral ─────────────────────── */}
+        {mobilePanel && (
+          <div className="fixed inset-0 z-40">
+            <button
+              type="button"
+              aria-label="Fechar painel"
+              className="absolute inset-0 bg-[#06163c]/45 backdrop-blur-[2px]"
+              onClick={() => setMobilePanel(null)}
+            />
 
-                  <div className="mb-5 rounded-[28px] bg-gradient-to-r from-[#0f48d2] via-[#0d55e6] to-[#0b3cbc] px-4 py-4 text-white shadow-[0_20px_42px_rgba(13,72,210,0.22)]">
-                    <p className="text-[1.15rem] font-semibold tracking-[-0.05em]">
-                      {nomeEmpresa}
+            {mobilePanel === 'menu' ? (
+              // Drawer lateral esquerdo
+              <div className="absolute inset-y-0 left-0 flex w-[88%] max-w-sm flex-col bg-white px-5 pb-6 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-[0_30px_80px_rgba(15,23,42,0.24)]">
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-[1.35rem] font-semibold tracking-[-0.06em] text-[#11224c]">
+                      Navegação
                     </p>
-                    <p className="mt-1 text-sm text-white/76">
-                      Logado como {user?.name ?? 'Usuário'}
+                    <p className="text-sm text-slate-500">
+                      Acesse os módulos do seu ambiente.
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setMobilePanel(null)}
+                    className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500"
+                    aria-label="Fechar menu"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
 
-                  <div className="flex-1 space-y-2 overflow-y-auto">
-                    {visibleMenuActions.map((action) => {
+                {/* Badge da empresa no menu */}
+                <div className="mb-5 rounded-[28px] bg-gradient-to-r from-[#0f48d2] via-[#0d55e6] to-[#0b3cbc] px-4 py-4 text-white shadow-[0_20px_42px_rgba(13,72,210,0.22)]">
+                  <p className="text-[1.15rem] font-semibold tracking-[-0.05em]">
+                    {nomeEmpresa}
+                  </p>
+                  <p className="mt-1 text-sm text-white/76">
+                    Logado como {user?.name ?? 'Usuário'}
+                  </p>
+                </div>
+
+                <div className="flex-1 space-y-2 overflow-y-auto">
+                  {visibleMenuActions.map((action) => {
+                    const Icon = action.icon
+                    return (
+                      <button
+                        key={action.href}
+                        type="button"
+                        onClick={() => pushAndClose(action.href)}
+                        className="flex w-full items-center gap-3 rounded-[22px] border border-slate-200/80 px-4 py-3 text-left shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <span className="flex-1 text-[0.98rem] font-medium text-[#11224c]">
+                          {action.label}
+                        </span>
+                        <ChevronRight className="h-4 w-4 text-slate-300" />
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700"
+                >
+                  {isLoggingOut
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <LogOut className="h-4 w-4" />
+                  }
+                  {isLoggingOut ? 'Saindo...' : 'Sair da conta'}
+                </button>
+              </div>
+            ) : (
+              // Bottom sheet de ações rápidas
+              <div className="absolute inset-x-0 bottom-0 rounded-t-[34px] bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-5 shadow-[0_-24px_64px_rgba(15,23,42,0.2)]">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-[1.35rem] font-semibold tracking-[-0.06em] text-[#11224c]">
+                      Ações rápidas
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      Escolha o módulo que você quer abrir agora.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMobilePanel(null)}
+                    className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500"
+                    aria-label="Fechar ações rápidas"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-4 gap-3">
+                  {visibleQuickActions
+                    .filter((a) => a.label !== 'Mais ações')
+                    .map((action) => {
                       const Icon = action.icon
-
                       return (
                         <button
-                          key={action.href}
+                          key={action.label}
                           type="button"
-                          onClick={() => pushAndClose(action.href)}
-                          className="flex w-full items-center gap-3 rounded-[22px] border border-slate-200/80 px-4 py-3 text-left shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
+                          onClick={() => handleQuickAction(action)}
+                          className="rounded-[22px] border border-slate-200/90 bg-white px-3 py-4 text-center shadow-[0_12px_26px_rgba(15,23,42,0.05)]"
                         >
-                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                            <Icon className="h-5 w-5" />
+                          <div className="mb-3 flex justify-center">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10">
+                              <Icon className="h-5 w-5 text-primary" />
+                            </div>
                           </div>
-                          <span className="flex-1 text-[0.98rem] font-medium text-[#11224c]">
+                          <p className="text-[0.8rem] leading-4 text-slate-700">
                             {action.label}
-                          </span>
-                          <ChevronRight className="h-4 w-4 text-slate-300" />
+                          </p>
                         </button>
                       )
                     })}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700"
-                  >
-                    {isLoggingOut ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <LogOut className="h-4 w-4" />
-                    )}
-                    {isLoggingOut ? 'Saindo...' : 'Sair da conta'}
-                  </button>
                 </div>
-              ) : (
-                <div className="absolute inset-x-0 bottom-0 rounded-t-[34px] bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-5 shadow-[0_-24px_64px_rgba(15,23,42,0.2)]">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-[1.35rem] font-semibold tracking-[-0.06em] text-[#11224c]">
-                        Acoes rapidas
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        Escolha o módulo que você quer abrir agora.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setMobilePanel(null)}
-                      className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500"
-                      aria-label="Fechar acoes rapidas"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-3">
-                    {visibleQuickActions
-                      .filter((action) => action.label !== 'Mais ações')
-                      .map((action) => {
-                        const Icon = action.icon
-
-                        return (
-                          <button
-                            key={action.label}
-                            type="button"
-                            onClick={() => handleQuickAction(action)}
-                            className="rounded-[22px] border border-slate-200/90 bg-white px-3 py-4 text-center shadow-[0_12px_26px_rgba(15,23,42,0.05)]"
-                          >
-                            <div className="mb-3 flex justify-center">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10">
-                                <Icon className="h-5 w-5 text-primary" />
-                              </div>
-                            </div>
-                            <p className="text-[0.8rem] leading-4 text-slate-700">
-                              {action.label}
-                            </p>
-                          </button>
-                        )
-                      })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* ══════════════════════════════════════════════════
+          LAYOUT DESKTOP — visível apenas em telas >= md
+      ══════════════════════════════════════════════════ */}
       <div className="hidden md:block">
         <Topbar
           title="Dashboard"

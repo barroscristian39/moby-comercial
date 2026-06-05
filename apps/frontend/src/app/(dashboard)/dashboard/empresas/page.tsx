@@ -62,7 +62,7 @@ export default function EmpresasPage() {
   const user = useAuthStore((state) => state.user)
   const accessContext = useAuthStore((state) => state.accessContext)
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
-  const canManageCompanies = (accessContext?.available_permissions ?? []).includes(Permission.COMPANIES_WRITE)
+  const canManageCompanies = (accessContext?.available_permissions ?? []).includes('companies.write')
   const [busca, setBusca] = useState('')
   const [filtroTenantId, setFiltroTenantId] = useState('')
   const [modalAberto, setModalAberto] = useState(false)
@@ -179,7 +179,159 @@ export default function EmpresasPage() {
     <>
       <Topbar title="Empresas" subtitle="Gerencie as empresas cadastradas no sistema" />
 
-      <div className="p-6 space-y-4">
+      {/* ══════════════════════════════════════
+          LAYOUT MOBILE — cards em lista
+      ══════════════════════════════════════ */}
+      <div className="md:hidden flex flex-col min-h-[calc(100vh-56px)] bg-[#EDF0F7]">
+
+        {/* Barra de busca */}
+        <div className="px-4 pt-4 pb-3 bg-white border-b border-slate-100 space-y-2.5">
+          {isSuperAdmin && tenants.length === 0 && !tenantsQuery.isLoading && (
+            <p className="text-xs text-warning bg-warning/10 rounded-xl px-3 py-2">
+              Nenhum ambiente cadastrado. Crie o primeiro antes de cadastrar empresas.
+            </p>
+          )}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Buscar por nome ou CNPJ..."
+              className="pl-9 h-10 text-sm rounded-xl bg-slate-50 border-slate-200"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
+          {isSuperAdmin && (
+            <select
+              className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              value={filtroTenantId}
+              onChange={(e) => setFiltroTenantId(e.target.value)}
+            >
+              <option value="">Todos os ambientes</option>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Lista de cards */}
+        <div className="flex-1 px-4 pt-3 pb-32 space-y-3">
+
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin opacity-40" />
+              <p className="text-sm">Carregando empresas...</p>
+            </div>
+          )}
+
+          {isError && !isLoading && (
+            <div className="text-center py-12 text-sm text-destructive">
+              Erro ao carregar. Verifique a conexão.
+            </div>
+          )}
+
+          {!isLoading && !isError && empresas.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+              <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+                <Building2 className="h-7 w-7 opacity-30" />
+              </div>
+              <p className="text-sm">Nenhuma empresa encontrada</p>
+            </div>
+          )}
+
+          {empresas.map((empresa) => (
+            <div
+              key={empresa.id}
+              className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_12px_rgba(15,23,42,0.07)] overflow-hidden"
+            >
+              {/* Corpo do card */}
+              <div className="flex items-start gap-3 p-4">
+                <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                  <Building2 className="h-5 w-5 text-blue-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-sm text-slate-800 leading-snug">
+                      {empresa.tradeName ?? empresa.name}
+                    </p>
+                    <Badge variant={empresa.isActive ? 'success' : 'secondary'} className="shrink-0 text-[0.65rem]">
+                      {empresa.isActive ? 'Ativa' : 'Inativa'}
+                    </Badge>
+                  </div>
+                  {empresa.tradeName && (
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">{empresa.name}</p>
+                  )}
+                  <p className="text-xs text-slate-400 mt-1 font-mono">{formatCnpj(empresa.cnpj)}</p>
+                  <p className="text-[0.65rem] text-slate-400 mt-0.5">
+                    Cadastro: {new Date(empresa.createdAt).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Ações */}
+              <div className="flex items-center gap-2 px-4 pb-3">
+                {empresa.isActive && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-8 text-xs gap-1.5 rounded-xl"
+                    onClick={() => selecionarEmpresa(empresa)}
+                  >
+                    <LogIn className="h-3.5 w-3.5" />
+                    Acessar
+                  </Button>
+                )}
+                {canManageCompanies && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 w-8 p-0 rounded-xl"
+                      onClick={() => abrirModalEditar(empresa)}
+                      title="Editar"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 w-8 p-0 rounded-xl"
+                      onClick={() => alternarStatus(empresa)}
+                      title={empresa.isActive ? 'Desativar' : 'Ativar'}
+                    >
+                      <Power className={`h-3.5 w-3.5 ${empresa.isActive ? 'text-destructive' : 'text-success'}`} />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {!isLoading && (
+            <p className="text-center text-xs text-muted-foreground pt-1">
+              {empresas.length} empresa{empresas.length !== 1 ? 's' : ''} encontrada{empresas.length !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+
+        {/* FAB — Nova Empresa */}
+        {canManageCompanies && (
+          <button
+            type="button"
+            onClick={abrirModalNova}
+            disabled={isSuperAdmin && tenants.length === 0}
+            className="fixed bottom-24 right-5 z-20 h-14 w-14 rounded-full bg-primary text-white shadow-[0_8px_24px_rgba(var(--primary-rgb),0.4)] flex items-center justify-center disabled:opacity-50"
+            aria-label="Nova empresa"
+          >
+            <Plus className="h-6 w-6" />
+          </button>
+        )}
+      </div>
+
+      {/* ══════════════════════════════════════
+          LAYOUT DESKTOP — tabela
+      ══════════════════════════════════════ */}
+      <div className="hidden md:block p-6 space-y-4">
         {isSuperAdmin && tenants.length === 0 && !tenantsQuery.isLoading && (
           <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
             Nenhum ambiente cadastrado. Crie o primeiro ambiente antes de cadastrar empresas.
@@ -226,18 +378,10 @@ export default function EmpresasPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Empresa
-                    </th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      CNPJ
-                    </th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Status
-                    </th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Cadastro
-                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Empresa</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">CNPJ</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cadastro</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -272,14 +416,10 @@ export default function EmpresasPage() {
                       onClick={() => empresa.isActive && selecionarEmpresa(empresa)}
                     >
                       <td className="px-4 py-3">
-                        <p className="font-medium text-foreground">
-                          {empresa.tradeName ?? empresa.name}
-                        </p>
+                        <p className="font-medium text-foreground">{empresa.tradeName ?? empresa.name}</p>
                         <p className="text-xs text-muted-foreground">{empresa.name}</p>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
-                        {formatCnpj(empresa.cnpj)}
-                      </td>
+                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{formatCnpj(empresa.cnpj)}</td>
                       <td className="px-4 py-3">
                         <Badge variant={empresa.isActive ? 'success' : 'secondary'}>
                           {empresa.isActive ? 'Ativa' : 'Inativa'}
@@ -291,34 +431,20 @@ export default function EmpresasPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {empresa.isActive && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={(e) => { e.stopPropagation(); selecionarEmpresa(empresa) }}
-                              title="Acessar dashboard"
-                            >
+                            <Button variant="ghost" size="icon" className="h-7 w-7"
+                              onClick={(e) => { e.stopPropagation(); selecionarEmpresa(empresa) }} title="Acessar dashboard">
                               <LogIn className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {canManageCompanies && (
                             <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={(e) => { e.stopPropagation(); abrirModalEditar(empresa) }}
-                                title="Editar empresa"
-                              >
+                              <Button variant="ghost" size="icon" className="h-7 w-7"
+                                onClick={(e) => { e.stopPropagation(); abrirModalEditar(empresa) }} title="Editar empresa">
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
+                              <Button variant="ghost" size="icon" className="h-7 w-7"
                                 onClick={(e) => { e.stopPropagation(); alternarStatus(empresa) }}
-                                title={empresa.isActive ? 'Desativar' : 'Ativar'}
-                              >
+                                title={empresa.isActive ? 'Desativar' : 'Ativar'}>
                                 <Power className={`h-3.5 w-3.5 ${empresa.isActive ? 'text-destructive' : 'text-success'}`} />
                               </Button>
                             </>

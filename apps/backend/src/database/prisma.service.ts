@@ -12,6 +12,7 @@ type PrismaModelDelegateName =
   | 'employee'
   | 'risk'
   | 'accident'
+  | 'accidentEvidence'
   | 'functionTemplate'
   | 'generatedDocument'
   | 'accidentTemplate'
@@ -46,6 +47,7 @@ const MODEL_DELEGATES: PrismaModelDelegateName[] = [
   'employee',
   'risk',
   'accident',
+  'accidentEvidence',
   'functionTemplate',
   'generatedDocument',
   'accidentTemplate',

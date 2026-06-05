@@ -38,6 +38,9 @@ enum AuditAction {
   DELETE
   LOGIN
   LOGIN_FAILED
+  LOGIN_MFA_REQUEST
+  LOGIN_MFA_COMPLETE
+  LOGIN_MFA_FAILED
   LOGOUT
   REFRESH
   PASSWORD_RESET_REQUEST
@@ -738,6 +741,7 @@ model User {
   passwordHash String    @map("password_hash")
   name         String
   role         Role      @default(CONSULTA)
+  sessionVersion Int     @default(0) @map("session_version")
   avatarUrl    String?   @map("avatar_url")
   isActive     Boolean   @default(true) @map("is_active")
   lastLoginAt  DateTime? @map("last_login_at")
@@ -760,6 +764,7 @@ model User {
   companyAccess            UserCompanyAccess[]
   unitAccess               UserUnitAccess[]
   refreshTokens            RefreshToken[]
+  loginVerificationCodes   LoginVerificationCode[]
   passwordResetTokens      PasswordResetToken[]
   notifications            Notification[]
   auditLogs                AuditLog[]
@@ -858,6 +863,23 @@ model PasswordResetToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+model LoginVerificationCode {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  codeHash  String    @map("code_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  ip        String?
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("login_verification_codes")
 }
 
 model EpiItem {

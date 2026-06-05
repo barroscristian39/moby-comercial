@@ -48,7 +48,7 @@ function formatCep(value: string): string {
 
 export default function UnidadesPage() {
   const accessContext = useAuthStore((state) => state.accessContext)
-  const canManageUnits = (accessContext?.available_permissions ?? []).includes(Permission.UNITS_WRITE)
+  const canManageUnits = (accessContext?.available_permissions ?? []).includes('units.write')
   const [busca, setBusca] = useState('')
   const [filtroEmpresaId, setFiltroEmpresaId] = useState('')
   const [modalAberto, setModalAberto] = useState(false)

@@ -98,7 +98,7 @@ export default function GRODashboardPage() {
   const router = useRouter()
   const { activeCompany, hydrate } = useCompanyStore()
   const accessContext = useAuthStore((state) => state.accessContext)
-  const canManageRisks = (accessContext?.available_permissions ?? []).includes(Permission.RISKS_WRITE)
+  const canManageRisks = (accessContext?.available_permissions ?? []).includes('risks.write')
 
   const [search, setSearch] = useState('')
   const [unitFilter, setUnitFilter] = useState('')

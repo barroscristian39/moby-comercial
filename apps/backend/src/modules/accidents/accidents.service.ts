@@ -15,6 +15,7 @@ import { UploadAccidentEvidenceDto } from './dto/upload-accident-evidence.dto'
 import { UpdateAccidentDto } from './dto/update-accident.dto'
 import { AccidentEvidenceEntity } from './entities/accident-evidence.entity'
 import { AccidentEntity } from './entities/accident.entity'
+import { AccidentListEntity } from './entities/accident-list.entity'
 import { AccidentsRepository } from './accidents.repository'
 
 const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024
@@ -68,7 +69,7 @@ export class AccidentsService {
     })
 
     return {
-      data: items.map((accident) => this.mapToEntity(accident)),
+      data: items.map((accident) => this.mapToListEntity(accident)),
       meta: {
         total,
         page: pagination.page,
@@ -157,7 +158,7 @@ export class AccidentsService {
       action: AuditAction.CREATE,
       entityType: 'accidents',
       entityId: created.id,
-      metadata: { accident: this.mapToEntity(created) },
+      metadata: { accident: this.buildAccidentAuditSummary(created) },
     })
 
     return { data: this.mapToEntity(created) }
@@ -251,8 +252,8 @@ export class AccidentsService {
       entityType: 'accidents',
       entityId: updated.id,
       metadata: {
-        previous: this.mapToEntity(accident),
-        next: this.mapToEntity(updated),
+        previous: this.buildAccidentAuditSummary(accident),
+        next: this.buildAccidentAuditSummary(updated),
       },
     })
 
@@ -270,7 +271,7 @@ export class AccidentsService {
       action: AuditAction.DELETE,
       entityType: 'accidents',
       entityId: deleted.id,
-      metadata: { accident: this.mapToEntity(accident) },
+      metadata: { accident: this.buildAccidentAuditSummary(accident) },
     })
   }
 
@@ -625,6 +626,29 @@ export class AccidentsService {
     }
   }
 
+  private mapToListEntity(accident: any): AccidentListEntity {
+    return {
+      id: accident.id,
+      tenantId: accident.tenantId,
+      companyId: accident.companyId,
+      companyName: accident.company?.tradeName ?? accident.company?.name ?? null,
+      unitId: accident.unitId,
+      unitName: accident.unit?.name ?? '—',
+      employeeId: accident.employeeId,
+      employeeName: accident.employee?.name ?? '—',
+      employeeCpfMasked: this.maskCpf(accident.employee?.cpf),
+      employeeRegistration: accident.employee?.registration ?? null,
+      code: accident.code,
+      occurredAt: accident.occurredAt,
+      accidentType: accident.accidentType,
+      severity: accident.severity,
+      status: accident.status,
+      leaveRequired: accident.leaveRequired,
+      leaveDays: accident.leaveDays,
+      isActive: accident.isActive,
+    }
+  }
+
   private mapEvidenceToEntity(evidence: any): AccidentEvidenceEntity {
     return {
       id: evidence.id,
@@ -649,6 +673,37 @@ export class AccidentsService {
     const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
     const suffix = Math.random().toString(36).slice(2, 6).toUpperCase()
     return `ACC-${date}-${time}-${suffix}`
+  }
+
+  private buildAccidentAuditSummary(accident: any) {
+    return {
+      id: accident.id,
+      tenantId: accident.tenantId,
+      companyId: accident.companyId,
+      unitId: accident.unitId,
+      employeeId: accident.employeeId,
+      code: accident.code,
+      accidentType: accident.accidentType,
+      severity: accident.severity,
+      status: accident.status,
+      occurredAt: accident.occurredAt,
+      reportedAt: accident.reportedAt,
+      leaveRequired: accident.leaveRequired,
+      leaveDays: accident.leaveDays,
+      catIssued: accident.catIssued,
+      isActive: accident.isActive,
+    }
+  }
+
+  private maskCpf(value: string | null | undefined) {
+    if (!value) return null
+
+    const digits = value.replace(/\D/g, '')
+    if (digits.length !== 11) {
+      return '***.***.***-**'
+    }
+
+    return `${digits.slice(0, 3)}.***.***-${digits.slice(-2)}`
   }
 
   private resolveInjuredBodyPartSummary(

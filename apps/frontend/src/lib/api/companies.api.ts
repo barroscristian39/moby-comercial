@@ -16,6 +16,7 @@ export interface Company {
   addressState: string | null
   addressZipCode: string | null
   isActive: boolean
+  unitCount: number
   createdAt: string
 }
 

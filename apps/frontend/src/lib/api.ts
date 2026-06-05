@@ -42,6 +42,19 @@ function clearClientSession() {
   document.cookie = 'has_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax'
 }
 
+function shouldBypassAuthRefresh(config?: { url?: string }) {
+  const requestUrl = config?.url ?? ''
+
+  return [
+    '/auth/login',
+    '/auth/login/verify',
+    '/auth/login/resend',
+    '/auth/refresh',
+    '/auth/password/forgot',
+    '/auth/password/reset',
+  ].some((path) => requestUrl.includes(path))
+}
+
 function flushRefreshQueue(token?: string, error?: unknown) {
   refreshQueue.forEach((entry) => {
     if (token) {
@@ -59,14 +72,25 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
+    const bypassRefresh = shouldBypassAuthRefresh(original)
+
+    if (bypassRefresh) {
+      return Promise.reject(error)
+    }
 
     if (error.response?.status !== 401 || original._retry) {
       // Mostra erro genérico se não for 401
       if (error.response?.status !== 401 && !original._retry) {
-        const errorMessage = error.response?.data?.error?.message || 'Erro ao processar requisição'
+        const apiError = error.response?.data?.error
+        const firstDetail = Array.isArray(apiError?.details) ? apiError.details[0] : undefined
+        const errorMessage = apiError?.message || 'Erro ao processar requisição'
+        const description = firstDetail
+          ? `${errorMessage}: ${firstDetail.field} ${firstDetail.message}`
+          : errorMessage
+
         triggerToast({
           title: '✗ Erro',
-          description: errorMessage,
+          description,
           variant: 'destructive',
         })
       }

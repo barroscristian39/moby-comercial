@@ -20,7 +20,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
-import { RequestUser, Role, PaginationSchema } from '@moby/shared'
+import { RequirePermissions } from '../../common/decorators/permissions.decorator'
+import { RequestUser, Role, PaginationSchema, Permission } from '@moby/shared'
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('job-functions')
@@ -28,6 +29,7 @@ export class JobFunctionsController {
   constructor(private readonly jobFunctionsService: JobFunctionsService) {}
 
   @Roles(Role.ADMIN_SYSTEM, Role.TECH_SAFETY, Role.HR_ADMIN, Role.MANAGER)
+  @RequirePermissions(Permission.EMPLOYEES_READ)
   @Get()
   findAll(
     @CurrentUser() user: RequestUser,
@@ -41,6 +43,7 @@ export class JobFunctionsController {
   }
 
   @Roles(Role.ADMIN_SYSTEM, Role.TECH_SAFETY, Role.HR_ADMIN, Role.MANAGER)
+  @RequirePermissions(Permission.EMPLOYEES_READ)
   @Get(':id')
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
@@ -50,6 +53,7 @@ export class JobFunctionsController {
   }
 
   @Roles(Role.ADMIN_SYSTEM, Role.HR_ADMIN, Role.TECH_SAFETY)
+  @RequirePermissions(Permission.EMPLOYEES_WRITE)
   @Post()
   create(
     @Body(new ZodPipe(CreateJobFunctionSchema)) dto: CreateJobFunctionDto,
@@ -59,6 +63,7 @@ export class JobFunctionsController {
   }
 
   @Roles(Role.ADMIN_SYSTEM, Role.HR_ADMIN, Role.TECH_SAFETY)
+  @RequirePermissions(Permission.EMPLOYEES_WRITE)
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -69,6 +74,7 @@ export class JobFunctionsController {
   }
 
   @Roles(Role.ADMIN_SYSTEM, Role.HR_ADMIN)
+  @RequirePermissions(Permission.EMPLOYEES_WRITE)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(

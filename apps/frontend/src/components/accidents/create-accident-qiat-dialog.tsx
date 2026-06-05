@@ -712,7 +712,7 @@ export function CreateAccidentQiatDialog({
                     <option value="">{modalUnitId ? 'Selecione o colaborador' : 'Selecione a unidade primeiro'}</option>
                     {employees.map((employee) => (
                       <option key={employee.id} value={employee.id}>
-                        {employee.name} · {formatCpf(employee.cpf)}
+                        {employee.name} · {employee.cpfMasked ?? 'CPF protegido'}
                       </option>
                     ))}
                   </select>

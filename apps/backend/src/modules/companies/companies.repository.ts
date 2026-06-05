@@ -36,6 +36,7 @@ export class CompaniesRepository {
         skip: (params.page - 1) * params.perPage,
         take: params.perPage,
         orderBy: { name: 'asc' },
+        include: { _count: { select: { units: true } } },
       }),
       this.prisma.company.count({ where }),
     ])

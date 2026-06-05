@@ -78,6 +78,27 @@ export interface Accident {
   updatedAt: string
 }
 
+export interface AccidentListItem {
+  id: string
+  tenantId: string
+  companyId: string
+  companyName: string | null
+  unitId: string
+  unitName: string
+  employeeId: string
+  employeeName: string
+  employeeCpfMasked: string | null
+  employeeRegistration: string | null
+  code: string
+  occurredAt: string
+  accidentType: AccidentType
+  severity: AccidentSeverity
+  status: AccidentStatus
+  leaveRequired: boolean
+  leaveDays: number
+  isActive: boolean
+}
+
 export interface AccidentConclusionReport {
   accidentId: string
   code: string
@@ -262,7 +283,7 @@ export const accidentsApi = {
     toDate?: string
   }) => {
     const { data } = await api.get('/accidents', { params })
-    return data as PaginatedResponse<Accident>
+    return data as PaginatedResponse<AccidentListItem>
   },
 
   findOne: async (id: string) => {

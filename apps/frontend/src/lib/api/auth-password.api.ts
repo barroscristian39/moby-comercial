@@ -2,7 +2,6 @@ import { api } from '@/lib/api'
 
 export type ForgotPasswordResponse = {
   message: string
-  devResetToken?: string
 }
 
 export type ResetPasswordResponse = {
@@ -14,7 +13,7 @@ export async function requestPasswordReset(email: string) {
   return data.data
 }
 
-export async function submitPasswordReset(token: string, password: string) {
-  const { data } = await api.post<{ data: ResetPasswordResponse }>('/auth/password/reset', { token, password })
+export async function submitPasswordReset(email: string, code: string, password: string) {
+  const { data } = await api.post<{ data: ResetPasswordResponse }>('/auth/password/reset', { email, code, password })
   return data.data
 }

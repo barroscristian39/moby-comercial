@@ -3,6 +3,29 @@ import { AuditAction, Prisma } from '@prisma/client'
 import { PaginationDto, RequestUser, Role } from '@moby/shared'
 import { AuditRepository } from './audit.repository'
 
+const SENSITIVE_KEY_PATTERNS = [
+  /password/i,
+  /token/i,
+  /secret/i,
+  /authorization/i,
+  /cookie/i,
+  /cpf/i,
+  /email/i,
+  /phone/i,
+  /salary/i,
+  /birthdate/i,
+  /medical/i,
+  /witness/i,
+  /immediatecause/i,
+  /rootcause/i,
+  /conclusionsummary/i,
+  /recommendation/i,
+  /managernotes/i,
+  /description/i,
+  /occurrenceaddress/i,
+  /filecontent/i,
+]
+
 @Injectable()
 export class AuditService {
   private readonly logger = new Logger(AuditService.name)
@@ -76,7 +99,7 @@ export class AuditService {
     if (value && typeof value === 'object') {
       const result: Record<string, Prisma.InputJsonValue> = {}
       for (const [key, nested] of Object.entries(value)) {
-        if (/(password|token|secret|authorization|cookie)/i.test(key)) {
+        if (SENSITIVE_KEY_PATTERNS.some((pattern) => pattern.test(key))) {
           result[key] = '[REDACTED]'
           continue
         }

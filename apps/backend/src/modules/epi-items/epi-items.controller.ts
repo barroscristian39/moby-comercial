@@ -21,7 +21,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
-import { RequestUser, Role, PaginationSchema } from '@moby/shared'
+import { RequirePermissions } from '../../common/decorators/permissions.decorator'
+import { RequestUser, Role, PaginationSchema, Permission } from '@moby/shared'
 
 const EpiItemFilterSchema = PaginationSchema.extend({
   companyId: z.string().uuid().optional(),
@@ -35,6 +36,7 @@ export class EpiItemsController {
   constructor(private readonly epiItemsService: EpiItemsService) {}
 
   @Roles(Role.ADMIN_SYSTEM, Role.TECH_SAFETY, Role.HR_ADMIN, Role.MANAGER)
+  @RequirePermissions(Permission.EPI_READ)
   @Get()
   findAll(
     @CurrentUser() user: RequestUser,
@@ -45,6 +47,7 @@ export class EpiItemsController {
   }
 
   @Roles(Role.ADMIN_SYSTEM, Role.TECH_SAFETY, Role.HR_ADMIN, Role.MANAGER)
+  @RequirePermissions(Permission.EPI_READ)
   @Get(':id')
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
@@ -54,6 +57,7 @@ export class EpiItemsController {
   }
 
   @Roles(Role.ADMIN_SYSTEM, Role.TECH_SAFETY)
+  @RequirePermissions(Permission.EPI_WRITE)
   @Post()
   create(
     @Body(new ZodPipe(CreateEpiItemSchema)) dto: CreateEpiItemDto,
@@ -63,6 +67,7 @@ export class EpiItemsController {
   }
 
   @Roles(Role.ADMIN_SYSTEM, Role.TECH_SAFETY)
+  @RequirePermissions(Permission.EPI_WRITE)
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -73,6 +78,7 @@ export class EpiItemsController {
   }
 
   @Roles(Role.ADMIN_SYSTEM, Role.TECH_SAFETY)
+  @RequirePermissions(Permission.EPI_WRITE)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(

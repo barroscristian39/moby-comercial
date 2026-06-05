@@ -85,7 +85,7 @@ export default function AcidentesPage() {
 
   const canManageTemplates =
     (user?.role === Role.SUPER_ADMIN || user?.role === Role.TENANT_ADMIN) &&
-    (accessContext?.available_permissions ?? []).includes(Permission.DOCUMENTS_WRITE)
+    (accessContext?.available_permissions ?? []).includes('documents.write')
 
   const { data: companiesData } = useCompanies({ page: 1, perPage: 100 })
   const { data: unitsData } = useUnits({ page: 1, perPage: 100 })
@@ -379,7 +379,7 @@ export default function AcidentesPage() {
                       <td className="px-4 py-3">
                         <p className="font-medium text-foreground">{accident.employeeName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatCpf(accident.employeeCpf)}
+                          {accident.employeeCpfMasked ?? 'CPF protegido'}
                           {accident.employeeRegistration ? ` · ${accident.employeeRegistration}` : ''}
                         </p>
                       </td>

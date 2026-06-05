@@ -24,6 +24,10 @@ import {
   ForgotPasswordSchema,
   LoginDto,
   LoginSchema,
+  LoginVerificationDto,
+  LoginVerificationResendDto,
+  LoginVerificationResendSchema,
+  LoginVerificationSchema,
   ResetPasswordDto,
   ResetPasswordSchema,
 } from './dto/login.dto'
@@ -77,8 +81,39 @@ export class AuthController {
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
   ) {
-    const { accessToken, refreshToken, user, context } = await this.authService.login(
+    const result = await this.authService.login(
       (req as any).user,
+      this.getMeta(req),
+    )
+
+    if ('requiresTwoFactor' in result && result.requiresTwoFactor) {
+      return {
+        data: result,
+      }
+    }
+
+    const authenticatedResult = result as Awaited<ReturnType<AuthService['verifyLoginCode']>>
+    const { accessToken, refreshToken, user, context } = authenticatedResult
+
+    ;(res as any).setCookie(REFRESH_COOKIE, refreshToken, buildRefreshCookieOptions())
+
+    return {
+      data: { accessToken, user, context },
+    }
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('login/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyLogin(
+    @Body(new ZodPipe(LoginVerificationSchema)) dto: LoginVerificationDto,
+    @Req() req: FastifyRequest,
+    @Res({ passthrough: true }) res: FastifyReply,
+  ) {
+    const { accessToken, refreshToken, user, context } = await this.authService.verifyLoginCode(
+      dto.challengeId,
+      dto.code,
       this.getMeta(req),
     )
 
@@ -86,6 +121,19 @@ export class AuthController {
 
     return {
       data: { accessToken, user, context },
+    }
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Post('login/resend')
+  @HttpCode(HttpStatus.OK)
+  async resendLoginVerification(
+    @Body(new ZodPipe(LoginVerificationResendSchema)) dto: LoginVerificationResendDto,
+    @Req() req: FastifyRequest,
+  ) {
+    return {
+      data: await this.authService.resendLoginCode(dto.challengeId, this.getMeta(req)),
     }
   }
 
@@ -160,7 +208,7 @@ export class AuthController {
     @Body(new ZodPipe(ResetPasswordSchema)) dto: ResetPasswordDto,
     @Req() req: FastifyRequest,
   ) {
-    return { data: await this.authService.resetPassword(dto.token, dto.password, this.getMeta(req)) }
+    return { data: await this.authService.resetPassword(dto.email, dto.code, dto.password, this.getMeta(req)) }
   }
 
   private getMeta(req: FastifyRequest) {

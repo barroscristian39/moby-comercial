@@ -17,6 +17,7 @@ export interface CompanyEntity {
   responsibleName: string | null
   logoUrl: string | null
   isActive: boolean
+  unitCount: number
   createdAt: Date
   updatedAt: Date
 }

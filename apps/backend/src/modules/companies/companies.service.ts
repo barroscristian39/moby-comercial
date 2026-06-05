@@ -163,6 +163,7 @@ export class CompaniesService {
       responsibleName: company.responsibleName,
       logoUrl: company.logoUrl,
       isActive: company.isActive,
+      unitCount: company._count?.units ?? 0,
       createdAt: company.createdAt,
       updatedAt: company.updatedAt,
     }

@@ -21,8 +21,8 @@ import {
 import { useCompanies } from '@/hooks/use-companies'
 import { useUnits } from '@/hooks/use-units'
 import { useJobFunctions } from '@/hooks/use-job-functions'
-import { useEmployees, useCreateEmployee, useUpdateEmployee } from '@/hooks/use-employees'
-import type { Employee } from '@/lib/api/employees.api'
+import { useEmployees, useEmployee, useCreateEmployee, useUpdateEmployee } from '@/hooks/use-employees'
+import type { EmployeeListItem } from '@/lib/api/employees.api'
 import { useCompanyStore } from '@/store/company.store'
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ export default function ColaboradoresPage() {
   const [busca, setBusca] = useState('')
   const [filtroEmpresaId, setFiltroEmpresaId] = useState('')
   const [modalAberto, setModalAberto] = useState(false)
-  const [editando, setEditando] = useState<Employee | null>(null)
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null)
   const [navigatingEmployeeId, setNavigatingEmployeeId] = useState<string | null>(null)
   const activeCompany = useCompanyStore((s) => s.activeCompany)
 
@@ -70,6 +70,7 @@ export default function ColaboradoresPage() {
     perPage: 100,
     companyId: filtroEmpresaId || undefined,
   })
+  const editingEmployeeQuery = useEmployee(editingEmployeeId ?? undefined)
   const createEmployee = useCreateEmployee()
   const updateEmployee = useUpdateEmployee()
 
@@ -91,7 +92,7 @@ export default function ColaboradoresPage() {
     const termo = busca.toLowerCase()
     const matchBusca =
       c.name.toLowerCase().includes(termo) ||
-      c.cpf.includes(termo) ||
+      (c.cpfMasked ?? '').toLowerCase().includes(termo) ||
       (functionMap[c.jobFunctionId] ?? '').toLowerCase().includes(termo) ||
       (unitMap[c.unitId] ?? '').toLowerCase().includes(termo)
     const matchEmpresa = filtroEmpresaId ? c.companyId === filtroEmpresaId : true
@@ -117,7 +118,7 @@ export default function ColaboradoresPage() {
 
   function abrirModalNovo() {
     const empresaInicial = filtroEmpresaId || activeCompany?.id || ''
-    setEditando(null)
+    setEditingEmployeeId(null)
     form.reset({
       nome: '', cpf: '', dataNascimento: '', genero: undefined,
       empresaId: empresaInicial, unidadeId: '', funcaoId: '', dataAdmissao: '', matricula: '',
@@ -125,8 +126,26 @@ export default function ColaboradoresPage() {
     setModalAberto(true)
   }
 
-  function abrirModalEditar(colaborador: Employee) {
-    setEditando(colaborador)
+  function abrirModalEditar(colaborador: EmployeeListItem) {
+    setEditingEmployeeId(colaborador.id)
+    form.reset({
+      nome: colaborador.name,
+      cpf: '',
+      dataNascimento: '',
+      genero: undefined,
+      empresaId: colaborador.companyId,
+      unidadeId: colaborador.unitId,
+      funcaoId: colaborador.jobFunctionId,
+      dataAdmissao: colaborador.admissionDate.split('T')[0],
+      matricula: colaborador.registration ?? '',
+    })
+    setModalAberto(true)
+  }
+
+  useEffect(() => {
+    if (!modalAberto || !editingEmployeeId || !editingEmployeeQuery.data) return
+
+    const colaborador = editingEmployeeQuery.data
     form.reset({
       nome: colaborador.name,
       cpf: formatCpf(colaborador.cpf),
@@ -138,8 +157,7 @@ export default function ColaboradoresPage() {
       dataAdmissao: colaborador.admissionDate.split('T')[0],
       matricula: colaborador.registration ?? '',
     })
-    setModalAberto(true)
-  }
+  }, [modalAberto, editingEmployeeId, editingEmployeeQuery.data, form])
 
   async function salvar(data: ColaboradorFormData) {
     // Remove a formatação do CPF antes de enviar — backend exige 11 dígitos
@@ -148,9 +166,9 @@ export default function ColaboradoresPage() {
     try {
       let empresaParaExibir = data.empresaId
 
-      if (editando) {
+      if (editingEmployeeId) {
         const atualizado = await updateEmployee.mutateAsync({
-          id: editando.id,
+          id: editingEmployeeId,
           name: data.nome,
           cpf: cpfDigits,
           birthDate: data.dataNascimento || undefined,
@@ -179,14 +197,14 @@ export default function ColaboradoresPage() {
       setBusca('')
       setFiltroEmpresaId(empresaParaExibir)
       await refetch()
-      setEditando(null)
+      setEditingEmployeeId(null)
       setModalAberto(false)
     } catch {
       // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
     }
   }
 
-  async function alternarStatus(colaborador: Employee) {
+  async function alternarStatus(colaborador: EmployeeListItem) {
     try {
       await updateEmployee.mutateAsync({ id: colaborador.id, isActive: !colaborador.isActive })
     } catch {
@@ -200,6 +218,7 @@ export default function ColaboradoresPage() {
   }
 
   const isSaving = createEmployee.isPending || updateEmployee.isPending
+  const isEditingLoading = Boolean(editingEmployeeId) && editingEmployeeQuery.isLoading
 
   return (
     <>
@@ -301,7 +320,7 @@ export default function ColaboradoresPage() {
                         </p>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                        {formatCpf(colaborador.cpf)}
+                        {colaborador.cpfMasked ?? 'CPF protegido'}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
                         {functionMap[colaborador.jobFunctionId] ?? '—'}
@@ -361,14 +380,29 @@ export default function ColaboradoresPage() {
       </div>
 
       {/* Modal criar/editar */}
-      <Dialog open={modalAberto} onOpenChange={setModalAberto}>
+      <Dialog
+        open={modalAberto}
+        onOpenChange={(open) => {
+          setModalAberto(open)
+          if (!open) {
+            setEditingEmployeeId(null)
+          }
+        }}
+      >
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>{editando ? 'Editar Colaborador' : 'Novo Colaborador'}</DialogTitle>
+            <DialogTitle>{editingEmployeeId ? 'Editar Colaborador' : 'Novo Colaborador'}</DialogTitle>
             <DialogDescription>
-              {editando ? 'Atualize os dados do colaborador.' : 'Preencha os dados para cadastrar um novo colaborador.'}
+              {editingEmployeeId ? 'Atualize os dados do colaborador.' : 'Preencha os dados para cadastrar um novo colaborador.'}
             </DialogDescription>
           </DialogHeader>
+
+          {isEditingLoading && (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Carregando dados do colaborador...
+            </div>
+          )}
 
           <form onSubmit={form.handleSubmit(salvar)} className="space-y-4">
             <div className="space-y-1.5">
@@ -424,7 +458,7 @@ export default function ColaboradoresPage() {
               <select
                 id="empresaIdColab"
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-                disabled={!!editando}
+                disabled={!!editingEmployeeId}
                 {...form.register('empresaId')}
                 onChange={(e) => {
                   form.setValue('empresaId', e.target.value)
@@ -492,10 +526,19 @@ export default function ColaboradoresPage() {
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setModalAberto(false)}>Cancelar</Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setModalAberto(false)
+                  setEditingEmployeeId(null)
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSaving || isEditingLoading}>
                 {isSaving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                {editando ? 'Salvar Alterações' : 'Cadastrar Colaborador'}
+                {editingEmployeeId ? 'Salvar Alterações' : 'Cadastrar Colaborador'}
               </Button>
             </DialogFooter>
           </form>

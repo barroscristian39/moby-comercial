@@ -72,7 +72,7 @@ export default function FuncaoGestaoPage() {
   const accessContext = useAuthStore((state) => state.accessContext)
   const canManageTemplates =
     (user?.role === Role.SUPER_ADMIN || user?.role === Role.TENANT_ADMIN) &&
-    (accessContext?.available_permissions ?? []).includes(Permission.DOCUMENTS_WRITE)
+    (accessContext?.available_permissions ?? []).includes('documents.write')
 
   const [documentType, setDocumentType] = useState('ORDEM_SERVICO')
   const [templateName, setTemplateName] = useState('')
@@ -484,7 +484,7 @@ export default function FuncaoGestaoPage() {
                           onClick={() => router.push(`/dashboard/colaboradores/${employee.id}`)}
                         >
                           <td className="px-4 py-3 font-medium">{employee.name}</td>
-                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{employee.cpf}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{employee.cpfMasked ?? 'CPF protegido'}</td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">
                             {units.find((unit) => unit.id === employee.unitId)?.name ?? '—'}
                           </td>

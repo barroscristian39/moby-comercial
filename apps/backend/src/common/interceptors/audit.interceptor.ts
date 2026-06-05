@@ -58,8 +58,10 @@ export class AuditInterceptor implements NestInterceptor {
               metadata: {
                 route: request.url,
                 method: request.method,
-                body: request.body,
-                response: data,
+                params: request.params,
+                query: request.query,
+                bodyKeys: this.extractKeys(request.body),
+                responseKeys: this.extractKeys(data),
               },
               ip: Array.isArray(ip) ? ip[0] : String(ip),
               userAgent,
@@ -75,5 +77,13 @@ export class AuditInterceptor implements NestInterceptor {
   private extractEntity(url: string): string {
     const parts = url.replace(/^\/api\//, '').split('/')
     return parts[0] || 'unknown'
+  }
+
+  private extractKeys(value: unknown): string[] {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return []
+    }
+
+    return Object.keys(value as Record<string, unknown>).sort()
   }
 }

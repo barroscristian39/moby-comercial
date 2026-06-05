@@ -39,6 +39,13 @@ export class AuthRepository {
     })
   }
 
+  async incrementSessionVersion(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { sessionVersion: { increment: 1 } },
+    })
+  }
+
   async createRefreshToken(data: {
     userId: string
     tokenHash: string
@@ -72,6 +79,59 @@ export class AuthRepository {
     })
   }
 
+  async createLoginVerificationCode(data: {
+    id: string
+    userId: string
+    codeHash: string
+    expiresAt: Date
+    ip?: string
+    userAgent?: string
+  }) {
+    return this.prisma.loginVerificationCode.create({ data })
+  }
+
+  async revokeActiveLoginVerificationCodes(userId: string) {
+    await this.prisma.loginVerificationCode.updateMany({
+      where: {
+        userId,
+        usedAt: null,
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    })
+  }
+
+  async findActiveLoginVerificationCodeById(id: string) {
+    return this.prisma.loginVerificationCode.findFirst({
+      where: {
+        id,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      include: { user: { include: AUTH_USER_INCLUDE } },
+    })
+  }
+
+  async findActiveLoginVerificationCodeByIdAndHash(id: string, codeHash: string) {
+    return this.prisma.loginVerificationCode.findFirst({
+      where: {
+        id,
+        codeHash,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      include: { user: { include: AUTH_USER_INCLUDE } },
+    })
+  }
+
+  async markLoginVerificationCodeUsed(id: string) {
+    await this.prisma.loginVerificationCode.update({
+      where: { id },
+      data: { usedAt: new Date() },
+    })
+  }
+
   async createPasswordResetToken(data: {
     userId: string
     tokenHash: string
@@ -82,9 +142,22 @@ export class AuthRepository {
     return this.prisma.passwordResetToken.create({ data })
   }
 
-  async findPasswordResetTokenByHash(tokenHash: string) {
+  async revokeActivePasswordResetTokens(userId: string) {
+    await this.prisma.passwordResetToken.updateMany({
+      where: {
+        userId,
+        usedAt: null,
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    })
+  }
+
+  async findPasswordResetTokenByUserIdAndHash(userId: string, tokenHash: string) {
     return this.prisma.passwordResetToken.findFirst({
       where: {
+        userId,
         tokenHash,
         usedAt: null,
         expiresAt: { gt: new Date() },
