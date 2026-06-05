@@ -21,64 +21,66 @@ import { useCompanies } from '@/hooks/use-companies'
 import { useUnits } from '@/hooks/use-units'
 import { useJobFunctions } from '@/hooks/use-job-functions'
 import { useRisks, useCreateRisk, useUpdateRisk } from '@/hooks/use-risks'
+import { useAuthStore } from '@/store/auth.store'
+import type { AxiosError } from 'axios'
 import type { Risk } from '@/lib/api/risks.api'
-import type { RiskType, RiskLevel, RiskProbability, RiskSeverity } from '@moby/shared'
+import { Permission, RiskType, RiskLevel, RiskProbability, RiskSeverity } from '@moby/shared'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const RISK_TYPE_LABELS: Record<RiskType, string> = {
-  PHYSICAL: 'Físico',
-  CHEMICAL: 'Químico',
-  BIOLOGICAL: 'Biológico',
-  ERGONOMIC: 'Ergonômico',
-  ACCIDENT: 'Acidente',
+  [RiskType.PHYSICAL]: 'Físico',
+  [RiskType.CHEMICAL]: 'Químico',
+  [RiskType.BIOLOGICAL]: 'Biológico',
+  [RiskType.ERGONOMIC]: 'Ergonômico',
+  [RiskType.ACCIDENT]: 'Acidente',
 }
 
 const RISK_LEVEL_LABELS: Record<RiskLevel, string> = {
-  NEGLIGIBLE: 'Desprezível',
-  LOW: 'Baixo',
-  MEDIUM: 'Médio',
-  HIGH: 'Alto',
-  CRITICAL: 'Crítico',
+  [RiskLevel.NEGLIGIBLE]: 'Desprezível',
+  [RiskLevel.LOW]: 'Baixo',
+  [RiskLevel.MEDIUM]: 'Médio',
+  [RiskLevel.HIGH]: 'Alto',
+  [RiskLevel.CRITICAL]: 'Crítico',
 }
 
 const RISK_PROB_LABELS: Record<RiskProbability, string> = {
-  RARE: 'Rara',
-  UNLIKELY: 'Improvável',
-  POSSIBLE: 'Possível',
-  LIKELY: 'Provável',
-  ALMOST_CERTAIN: 'Quase certa',
+  [RiskProbability.RARE]: 'Rara',
+  [RiskProbability.UNLIKELY]: 'Improvável',
+  [RiskProbability.POSSIBLE]: 'Possível',
+  [RiskProbability.LIKELY]: 'Provável',
+  [RiskProbability.ALMOST_CERTAIN]: 'Quase certa',
 }
 
 const RISK_SEV_LABELS: Record<RiskSeverity, string> = {
-  INSIGNIFICANT: 'Insignificante',
-  MINOR: 'Menor',
-  MODERATE: 'Moderada',
-  MAJOR: 'Maior',
-  CATASTROPHIC: 'Catastrófica',
+  [RiskSeverity.INSIGNIFICANT]: 'Insignificante',
+  [RiskSeverity.MINOR]: 'Menor',
+  [RiskSeverity.MODERATE]: 'Moderada',
+  [RiskSeverity.MAJOR]: 'Maior',
+  [RiskSeverity.CATASTROPHIC]: 'Catastrófica',
 }
 
 const RISK_LEVEL_VARIANTS: Record<RiskLevel, 'muted' | 'secondary' | 'warning' | 'destructive' | 'success'> = {
-  NEGLIGIBLE: 'muted',
-  LOW: 'success',
-  MEDIUM: 'warning',
-  HIGH: 'destructive',
-  CRITICAL: 'destructive',
+  [RiskLevel.NEGLIGIBLE]: 'muted',
+  [RiskLevel.LOW]: 'success',
+  [RiskLevel.MEDIUM]: 'warning',
+  [RiskLevel.HIGH]: 'destructive',
+  [RiskLevel.CRITICAL]: 'destructive',
 }
 
-const RISK_TYPE_VALUES = ['PHYSICAL', 'CHEMICAL', 'BIOLOGICAL', 'ERGONOMIC', 'ACCIDENT'] as const
-const RISK_LEVEL_VALUES = ['NEGLIGIBLE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const
-const RISK_PROB_VALUES = ['RARE', 'UNLIKELY', 'POSSIBLE', 'LIKELY', 'ALMOST_CERTAIN'] as const
-const RISK_SEV_VALUES = ['INSIGNIFICANT', 'MINOR', 'MODERATE', 'MAJOR', 'CATASTROPHIC'] as const
+const RISK_TYPE_VALUES = Object.values(RiskType) as RiskType[]
+const RISK_LEVEL_VALUES = Object.values(RiskLevel) as RiskLevel[]
+const RISK_PROB_VALUES = Object.values(RiskProbability) as RiskProbability[]
+const RISK_SEV_VALUES = Object.values(RiskSeverity) as RiskSeverity[]
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
 const riscoSchema = z.object({
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
-  tipo: z.enum(RISK_TYPE_VALUES),
-  nivel: z.enum(RISK_LEVEL_VALUES),
-  probabilidade: z.enum(RISK_PROB_VALUES),
-  severidade: z.enum(RISK_SEV_VALUES),
+  tipo: z.nativeEnum(RiskType),
+  nivel: z.nativeEnum(RiskLevel),
+  probabilidade: z.nativeEnum(RiskProbability),
+  severidade: z.nativeEnum(RiskSeverity),
   empresaId: z.string().uuid('Selecione a empresa'),
   unidadeId: z.string().uuid('Selecione a unidade'),
   funcaoId: z.string().optional(),
@@ -98,10 +100,12 @@ export default function RiscosPage() {
   const [modalAberto, setModalAberto] = useState(false)
   const [editando, setEditando] = useState<Risk | null>(null)
 
+  const accessContext = useAuthStore((state) => state.accessContext)
+
   const { data: companiesData } = useCompanies({ page: 1, perPage: 100 })
   const { data: unitsData } = useUnits({ page: 1, perPage: 100 })
   const { data: functionsData } = useJobFunctions({ page: 1, perPage: 100 })
-  const { data: risksData, isLoading, isError } = useRisks({
+  const { data: risksData, isLoading, isError, error } = useRisks({
     page: 1,
     perPage: 200,
     companyId: filtroEmpresaId || undefined,
@@ -110,6 +114,15 @@ export default function RiscosPage() {
   })
   const createRisk = useCreateRisk()
   const updateRisk = useUpdateRisk()
+
+  const canReadRisks = (accessContext?.available_permissions ?? []).includes('risks.read')
+  const riskErrorMessage = (() => {
+    if (!isError || !error) return null
+    if ((error as AxiosError).isAxiosError) {
+      return (error as AxiosError).response?.data?.error?.message || (error as Error).message
+    }
+    return error instanceof Error ? error.message : 'Erro ao carregar riscos.'
+  })()
 
   const companies = companiesData?.data ?? []
   const allUnits = unitsData?.data ?? []
@@ -133,8 +146,8 @@ export default function RiscosPage() {
   const form = useForm<RiscoFormData>({
     resolver: zodResolver(riscoSchema),
     defaultValues: {
-      nome: '', tipo: 'PHYSICAL', nivel: 'MEDIUM',
-      probabilidade: 'POSSIBLE', severidade: 'MODERATE',
+      nome: '', tipo: RiskType.PHYSICAL, nivel: RiskLevel.MEDIUM,
+      probabilidade: RiskProbability.POSSIBLE, severidade: RiskSeverity.MODERATE,
       empresaId: '', unidadeId: '', funcaoId: '', descricao: '', medidasControle: '',
     },
   })
@@ -143,11 +156,44 @@ export default function RiscosPage() {
   const unidadesDisponiveis = allUnits.filter((u) => u.companyId === empresaIdSelecionada)
   const funcoesDisponiveis = allFunctions.filter((f) => f.companyId === empresaIdSelecionada)
 
+  const backendFieldMap: Record<string, keyof RiscoFormData> = {
+    unitId: 'unidadeId',
+    jobFunctionId: 'funcaoId',
+    name: 'nome',
+    type: 'tipo',
+    level: 'nivel',
+    probability: 'probabilidade',
+    severity: 'severidade',
+    description: 'descricao',
+    controlMeasures: 'medidasControle',
+  }
+
+  function applyValidationErrors(error: unknown) {
+    if (!error || typeof error !== 'object' || !('response' in error)) return false
+    const axiosError = error as AxiosError
+    const apiError = axiosError.response?.data?.error as any
+    if (!apiError || apiError.code !== 'VALIDATION_ERROR' || !Array.isArray(apiError.details)) {
+      return false
+    }
+
+    apiError.details.forEach((detail: any) => {
+      const field = backendFieldMap[detail.field]
+      if (field) {
+        form.setError(field, {
+          type: 'server',
+          message: detail.message,
+        })
+      }
+    })
+
+    return true
+  }
+
   function abrirModalNovo() {
     setEditando(null)
     form.reset({
-      nome: '', tipo: 'PHYSICAL', nivel: 'MEDIUM',
-      probabilidade: 'POSSIBLE', severidade: 'MODERATE',
+      nome: '', tipo: RiskType.PHYSICAL, nivel: RiskLevel.MEDIUM,
+      probabilidade: RiskProbability.POSSIBLE, severidade: RiskSeverity.MODERATE,
       empresaId: filtroEmpresaId, unidadeId: '', funcaoId: '', descricao: '', medidasControle: '',
     })
     setModalAberto(true)
@@ -199,7 +245,9 @@ export default function RiscosPage() {
         })
       }
       setModalAberto(false)
-    } catch {
+    } catch (error) {
+      const handled = applyValidationErrors(error)
+      if (handled) return
       // Erro já exibido via toast pelo interceptor do Axios — mantém o modal aberto
     }
   }
@@ -303,7 +351,9 @@ export default function RiscosPage() {
                   {isError && (
                     <tr>
                       <td colSpan={8} className="text-center py-12 text-destructive text-sm">
-                        Erro ao carregar riscos.
+                        {canReadRisks
+                          ? riskErrorMessage ?? 'Erro ao carregar riscos.'
+                          : 'Você não tem permissão para visualizar riscos.'}
                       </td>
                     </tr>
                   )}
