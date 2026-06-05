@@ -119,7 +119,8 @@ export default function RiscosPage() {
   const riskErrorMessage = (() => {
     if (!isError || !error) return null
     if ((error as AxiosError).isAxiosError) {
-      return (error as AxiosError).response?.data?.error?.message || (error as Error).message
+      const responseData = (error as AxiosError<{ error?: { message?: string } }>).response?.data
+      return responseData?.error?.message || (error as Error).message
     }
     return error instanceof Error ? error.message : 'Erro ao carregar riscos.'
   })()
