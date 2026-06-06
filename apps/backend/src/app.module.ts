@@ -27,6 +27,7 @@ import { AccidentsModule } from './modules/accidents/accidents.module'
 import { DocumentsModule } from './modules/documents/documents.module'
 import { RisksModule } from './modules/risks/risks.module'
 import { GroModule } from './modules/gro/gro.module'
+import { DashboardModule } from './modules/dashboard/dashboard.module'
 import { EpiItemsModule } from './modules/epi-items/epi-items.module'
 import { EpiDeliveriesModule } from './modules/epi-deliveries/epi-deliveries.module'
 import { AuditModule } from './modules/audit/audit.module'
@@ -56,6 +57,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     DocumentsModule,
     RisksModule,
     GroModule,
+    DashboardModule,
     EpiItemsModule,
     EpiDeliveriesModule,
   ],

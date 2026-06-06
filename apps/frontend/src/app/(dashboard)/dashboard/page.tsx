@@ -40,14 +40,25 @@ import { Topbar } from '@/components/layout/topbar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import companySelectLogoHorizontal from '@/assets/brand/company-select-logo-horizontal.png'
+import { useDashboardMetrics } from '@/hooks/use-dashboard'
 import { useAuthStore } from '@/store/auth.store'
 import { useCompanyStore } from '@/store/company.store'
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
+type DashboardMetricKey =
+  | 'activeUnits'
+  | 'employees'
+  | 'reportsIssued'
+  | 'supplementaryExams'
+  | 'accidentsWithLeave'
+  | 'accidentsWithoutLeave'
+  | 'expiredEpis'
+  | 'criticalRisks'
+
 type MetricCard = {
   label: string
-  value: number
+  metricKey: DashboardMetricKey
   icon: LucideIcon
   iconClass: string
   iconBg: string
@@ -80,14 +91,14 @@ type BottomNavItem = {
 // ─── Dados estáticos ────────────────────────────────────────────────────────
 
 const KPI_CARDS: MetricCard[] = [
-  { label: 'Unidades ativas', value: 0, icon: Building2, iconClass: 'text-blue-500', iconBg: 'bg-blue-50', href: '/dashboard/unidades', permission: 'units.read' },
-  { label: 'Colaboradores', value: 0, icon: Users, iconClass: 'text-blue-500', iconBg: 'bg-blue-50', href: '/dashboard/colaboradores', permission: 'employees.read' },
-  { label: 'ASOs Emitidos', value: 0, icon: Stethoscope, iconClass: 'text-green-500', iconBg: 'bg-green-50', href: '/dashboard/exames', permission: 'exams.read' },
-  { label: 'Exames Complementares', value: 0, icon: ClipboardList, iconClass: 'text-green-500', iconBg: 'bg-green-50', href: '/dashboard/exames', permission: 'exams.read' },
-  { label: 'Acidentes com afastamento', value: 0, icon: AlertTriangle, iconClass: 'text-red-500', iconBg: 'bg-red-50', href: '/dashboard/acidentes', permission: 'accidents.read' },
-  { label: 'Acidentes sem afastamento', value: 0, icon: AlertTriangle, iconClass: 'text-orange-500', iconBg: 'bg-orange-50', href: '/dashboard/acidentes', permission: 'accidents.read' },
-  { label: 'EPIs vencidos', value: 0, icon: HardHat, iconClass: 'text-orange-500', iconBg: 'bg-orange-50', href: '/dashboard/epi', permission: 'epi.read' },
-  { label: 'Riscos críticos', value: 0, icon: ShieldAlert, iconClass: 'text-red-500', iconBg: 'bg-red-50', href: '/dashboard/riscos', permission: 'risks.read' },
+  { label: 'Unidades ativas', metricKey: 'activeUnits', icon: Building2, iconClass: 'text-blue-500', iconBg: 'bg-blue-50', href: '/dashboard/unidades', permission: 'units.read' },
+  { label: 'Colaboradores', metricKey: 'employees', icon: Users, iconClass: 'text-blue-500', iconBg: 'bg-blue-50', href: '/dashboard/colaboradores', permission: 'employees.read' },
+  { label: 'Laudos emitidos', metricKey: 'reportsIssued', icon: Stethoscope, iconClass: 'text-green-500', iconBg: 'bg-green-50', href: '/dashboard/documentos', permission: 'documents.read' },
+  { label: 'Exames Complementares', metricKey: 'supplementaryExams', icon: ClipboardList, iconClass: 'text-green-500', iconBg: 'bg-green-50', href: '/dashboard/exames', permission: 'exams.read' },
+  { label: 'Acidentes com afastamento', metricKey: 'accidentsWithLeave', icon: AlertTriangle, iconClass: 'text-red-500', iconBg: 'bg-red-50', href: '/dashboard/acidentes', permission: 'accidents.read' },
+  { label: 'Acidentes sem afastamento', metricKey: 'accidentsWithoutLeave', icon: AlertTriangle, iconClass: 'text-orange-500', iconBg: 'bg-orange-50', href: '/dashboard/acidentes', permission: 'accidents.read' },
+  { label: 'EPIs vencidos', metricKey: 'expiredEpis', icon: HardHat, iconClass: 'text-orange-500', iconBg: 'bg-orange-50', href: '/dashboard/epi', permission: 'epi.read' },
+  { label: 'Riscos críticos', metricKey: 'criticalRisks', icon: ShieldAlert, iconClass: 'text-red-500', iconBg: 'bg-red-50', href: '/dashboard/riscos', permission: 'risks.read' },
 ]
 
 const QUICK_ACTIONS: QuickAction[] = [
@@ -196,10 +207,19 @@ export default function DashboardPage() {
   const router        = useRouter()
   const user          = useAuthStore((s) => s.user)
   const accessContext = useAuthStore((s) => s.accessContext)
+  const hasHydrated   = useAuthStore((s) => s.hasHydrated)
   const logout        = useAuthStore((s) => s.logout)
   const activeCompany = useCompanyStore((s) => s.activeCompany)
   const [mobilePanel, setMobilePanel] = useState<null | 'menu' | 'quick'>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  const {
+    data: dashboardMetrics,
+    isLoading: isLoadingDashboardMetrics,
+  } = useDashboardMetrics(
+    { companyId: activeCompany?.id ?? undefined },
+    hasHydrated && !!accessContext,
+  )
 
   const permissions  = new Set(accessContext?.available_permissions ?? [])
   const nomeUsuario  = user?.name?.split(' ')[0] ?? 'Cristian'
@@ -230,6 +250,38 @@ export default function DashboardPage() {
   const visibleMetrics     = KPI_CARDS.filter((c) => canAccess(c.permission))
   const visibleQuickActions = QUICK_ACTIONS.filter((a) => canAccess(a.permission))
   const visibleMenuActions  = MOBILE_MENU_ACTIONS.filter((a) => canAccess(a.permission))
+
+  function formatMetricValue(metricKey: DashboardMetricKey) {
+    if (isLoadingDashboardMetrics) {
+      return <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+    }
+
+    const valueMap: Record<DashboardMetricKey, number | null> = {
+      activeUnits: dashboardMetrics?.activeUnits ?? null,
+      employees: dashboardMetrics?.employees ?? null,
+      reportsIssued: dashboardMetrics?.reportsIssued ?? null,
+      supplementaryExams: dashboardMetrics?.supplementaryExams ?? null,
+      accidentsWithLeave: dashboardMetrics?.accidentsWithLeave ?? null,
+      accidentsWithoutLeave: dashboardMetrics?.accidentsWithoutLeave ?? null,
+      expiredEpis: dashboardMetrics?.expiredEpis ?? null,
+      criticalRisks: dashboardMetrics?.criticalRisks ?? null,
+    }
+
+    const value = valueMap[metricKey]
+    if (value === null) {
+      return <span className="text-slate-400">--</span>
+    }
+
+    return value.toLocaleString('pt-BR')
+  }
+
+  function metricHint(metricKey: DashboardMetricKey) {
+    if (metricKey === 'supplementaryExams' && dashboardMetrics && !dashboardMetrics.supplementaryExamsAvailable) {
+      return 'Sem modulo no banco'
+    }
+
+    return null
+  }
 
   return (
     <>
@@ -318,7 +370,12 @@ export default function DashboardPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-[0.68rem] text-slate-500 leading-snug">{card.label}</p>
-                      <p className="text-[1.5rem] font-bold text-slate-800 leading-none mt-1">{card.value}</p>
+                      <p className="mt-1 text-[1.5rem] font-bold leading-none text-slate-800">
+                        {formatMetricValue(card.metricKey)}
+                      </p>
+                      {metricHint(card.metricKey) ? (
+                        <p className="mt-1 text-[0.64rem] text-slate-400">{metricHint(card.metricKey)}</p>
+                      ) : null}
                     </div>
                   </div>
                 </button>
@@ -550,7 +607,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {KPI_CARDS.map((card) => {
+            {visibleMetrics.map((card) => {
               const Icon = card.icon
               return (
                 <Card key={card.label} className="cursor-pointer transition-shadow hover:shadow-md">
@@ -558,7 +615,12 @@ export default function DashboardPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="text-xs leading-snug text-muted-foreground">{card.label}</p>
-                        <p className="mt-2 text-3xl font-bold text-foreground">{card.value}</p>
+                        <div className="mt-2 text-3xl font-bold text-foreground">
+                          {formatMetricValue(card.metricKey)}
+                        </div>
+                        {metricHint(card.metricKey) ? (
+                          <p className="mt-1 text-[0.68rem] text-muted-foreground">{metricHint(card.metricKey)}</p>
+                        ) : null}
                       </div>
                       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${card.iconBg}`}>
                         <Icon className={`h-5 w-5 ${card.iconClass}`} />
