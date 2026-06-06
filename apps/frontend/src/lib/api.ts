@@ -7,12 +7,53 @@ import {
 } from '@/lib/auth-session'
 import { triggerToast } from '@/lib/toast-registry'
 
+function normalizeApiBaseUrl(origin: string) {
+  const normalizedOrigin = origin.trim().replace(/\/+$/, '')
+  return normalizedOrigin.endsWith('/api') ? normalizedOrigin : `${normalizedOrigin}/api`
+}
+
+function inferManagedApiOriginFromBrowserLocation() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const { protocol, hostname } = window.location
+  const candidates = [
+    hostname.replace('-frontend.', '-backend.'),
+    hostname.replace('-frontend-', '-backend-'),
+    hostname.replace('frontend', 'backend'),
+  ].filter((candidate, index, values) => candidate !== hostname && values.indexOf(candidate) === index)
+
+  const isManagedHost = hostname.endsWith('.onrender.com') || hostname.endsWith('.fly.dev')
+
+  if (!isManagedHost || candidates.length === 0) {
+    return null
+  }
+
+  return `${protocol}//${candidates[0]}`
+}
+
 function resolveApiBaseUrl() {
   const configuredValue = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_ORIGIN
-  const fallbackOrigin = 'http://localhost:3001'
 
-  const normalizedValue = (configuredValue || fallbackOrigin).trim().replace(/\/+$/, '')
-  return normalizedValue.endsWith('/api') ? normalizedValue : `${normalizedValue}/api`
+  if (configuredValue?.trim()) {
+    return normalizeApiBaseUrl(configuredValue)
+  }
+
+  const inferredManagedOrigin = inferManagedApiOriginFromBrowserLocation()
+  if (inferredManagedOrigin) {
+    return normalizeApiBaseUrl(inferredManagedOrigin)
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return normalizeApiBaseUrl('http://localhost:3001')
+  }
+
+  if (typeof window !== 'undefined') {
+    return normalizeApiBaseUrl(window.location.origin)
+  }
+
+  return '/api'
 }
 
 const API_BASE_URL = resolveApiBaseUrl()
