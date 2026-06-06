@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Poppins } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
@@ -27,6 +27,10 @@ export const metadata: Metadata = {
     title: 'MOBY SST',
     statusBarStyle: 'default',
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#0f172a',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
