@@ -2,6 +2,8 @@ FROM node:20-bookworm-slim AS builder
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV PUPPETEER_SKIP_DOWNLOAD="true"
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"
 
 RUN apt-get update && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
@@ -28,6 +30,8 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV NODE_ENV="production"
 ENV LIBREOFFICE_BIN="soffice"
+ENV PUPPETEER_SKIP_DOWNLOAD="true"
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   ca-certificates \
