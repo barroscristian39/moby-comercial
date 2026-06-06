@@ -81,9 +81,7 @@ export class AuthorizationService {
     }
 
     if (this.isTenantAdmin(currentUser)) return
-    if (!currentUser.companyIds?.includes(companyId)) {
-      this.deny('Empresa fora do escopo permitido')
-    }
+    this.assertCompanyInScope(currentUser, companyId)
   }
 
   async assertUnitAccess(currentUser: RequestUser, unitId: string): Promise<void> {
@@ -95,8 +93,58 @@ export class AuthorizationService {
     }
 
     if (this.isTenantAdmin(currentUser)) return
-    if (!currentUser.unitIds?.includes(unitId)) {
-      this.deny('Unidade fora do escopo permitido')
+    this.assertUnitInScope(currentUser, unitId)
+  }
+
+  resolveCompanyScope(currentUser: RequestUser, requestedCompanyId?: string): string[] | undefined {
+    if (this.isSuperAdmin(currentUser) || this.isTenantAdmin(currentUser)) {
+      return requestedCompanyId ? [requestedCompanyId] : undefined
+    }
+
+    const allowedCompanyIds = this.getOperationalCompanyScope(currentUser)
+    if (requestedCompanyId) {
+      if (!allowedCompanyIds.includes(requestedCompanyId)) {
+        this.deny('Empresa fora do escopo permitido')
+      }
+
+      return [requestedCompanyId]
+    }
+
+    return allowedCompanyIds
+  }
+
+  resolveUnitScope(currentUser: RequestUser, requestedUnitId?: string): string[] | undefined {
+    if (this.isSuperAdmin(currentUser) || this.isTenantAdmin(currentUser)) {
+      return requestedUnitId ? [requestedUnitId] : undefined
+    }
+
+    const allowedUnitIds = this.getOperationalUnitScope(currentUser)
+    if (requestedUnitId) {
+      if (!allowedUnitIds.includes(requestedUnitId)) {
+        this.deny('Unidade fora do escopo permitido')
+      }
+
+      return [requestedUnitId]
+    }
+
+    return allowedUnitIds
+  }
+
+  assertCompanyInScope(currentUser: RequestUser, companyId: string, message = 'Empresa fora do escopo permitido'): void {
+    if (this.isSuperAdmin(currentUser) || this.isTenantAdmin(currentUser)) return
+
+    const allowedCompanyIds = this.getOperationalCompanyScope(currentUser)
+    if (!allowedCompanyIds.includes(companyId)) {
+      this.deny(message)
+    }
+  }
+
+  assertUnitInScope(currentUser: RequestUser, unitId: string, message = 'Unidade fora do escopo permitido'): void {
+    if (this.isSuperAdmin(currentUser) || this.isTenantAdmin(currentUser)) return
+
+    const allowedUnitIds = this.getOperationalUnitScope(currentUser)
+    if (!allowedUnitIds.includes(unitId)) {
+      this.deny(message)
     }
   }
 
@@ -141,6 +189,15 @@ export class AuthorizationService {
     }
 
     return user
+  }
+
+  private getOperationalCompanyScope(currentUser: Pick<RequestUser, 'companyId' | 'companyIds'>): string[] {
+    const fallbackCompanyIds = currentUser.companyId ? [currentUser.companyId] : []
+    return Array.from(new Set([...(currentUser.companyIds ?? []), ...fallbackCompanyIds]))
+  }
+
+  private getOperationalUnitScope(currentUser: Pick<RequestUser, 'unitIds'>): string[] {
+    return Array.from(new Set(currentUser.unitIds ?? []))
   }
 
   private deny(message: string): never {

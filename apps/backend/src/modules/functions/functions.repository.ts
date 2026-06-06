@@ -17,7 +17,7 @@ export class FunctionsRepository {
 
   async findAll(params: {
     tenantId?: string
-    unitId?: string
+    companyIds?: string[]
     unitIds?: string[]
     page: number
     perPage: number
@@ -27,8 +27,8 @@ export class FunctionsRepository {
       deletedAt: null,
       ...(params.tenantId ? { tenantId: params.tenantId } : {}),
       ...(params.search ? { name: { contains: params.search, mode: 'insensitive' } } : {}),
-      ...(params.unitId ? { functionUnits: { some: { unitId: params.unitId } } } : {}),
-      ...(params.unitIds?.length ? { functionUnits: { some: { unitId: { in: params.unitIds } } } } : {}),
+      ...(params.companyIds !== undefined ? { companyId: { in: params.companyIds } } : {}),
+      ...(params.unitIds !== undefined ? { functionUnits: { some: { unitId: { in: params.unitIds } } } } : {}),
     }
 
     const [items, total] = await Promise.all([

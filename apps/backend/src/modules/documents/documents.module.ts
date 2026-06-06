@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { AuthorizationModule } from '../../common/authorization/authorization.module'
 import { PrismaModule } from '../../database/prisma.module'
 import { AuditModule } from '../audit/audit.module'
 import { AccidentDocumentsController } from './accident-documents.controller'
@@ -13,7 +14,7 @@ import { EmployeeDocumentsController } from './employee-documents.controller'
 import { FunctionTemplatesController } from './function-templates.controller'
 
 @Module({
-  imports: [PrismaModule, AuditModule],
+  imports: [PrismaModule, AuditModule, AuthorizationModule],
   controllers: [
     FunctionTemplatesController,
     AccidentTemplatesController,

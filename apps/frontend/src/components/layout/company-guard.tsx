@@ -20,20 +20,31 @@ export function CompanyGuard({ children }: Props) {
   const router        = useRouter()
   const pathname      = usePathname()
   const user          = useAuthStore((s) => s.user)
+  const hasHydrated   = useAuthStore((s) => s.hasHydrated)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const activeCompany = useCompanyStore((s) => s.activeCompany)
 
   const needsCompany =
-      user?.role === 'SUPER_ADMIN' &&
+    hasHydrated &&
+    isAuthenticated &&
+    user?.role === 'SUPER_ADMIN' &&
     !activeCompany &&
     !BYPASS_PATHS.some((p) => pathname.startsWith(p))
 
   useEffect(() => {
+    if (!hasHydrated) return
+
+    if (!isAuthenticated) {
+      router.replace('/login')
+      return
+    }
+
     if (needsCompany) {
       router.replace('/selecionar-empresa')
     }
-  }, [needsCompany, router])
+  }, [hasHydrated, isAuthenticated, needsCompany, router])
 
-  if (needsCompany) {
+  if (!hasHydrated || !isAuthenticated || needsCompany) {
     return null
   }
 

@@ -1,4 +1,10 @@
 import axios from 'axios'
+import { AuthSessionPayload } from '@/lib/auth-types'
+import {
+  applyAuthenticatedClientSession,
+  clearAuthenticatedClientSession,
+  getAccessToken,
+} from '@/lib/auth-session'
 import { triggerToast } from '@/lib/toast-registry'
 
 function resolveApiBaseUrl() {
@@ -11,6 +17,21 @@ function resolveApiBaseUrl() {
 
 const API_BASE_URL = resolveApiBaseUrl()
 
+type AuthSessionBridge = {
+  onSessionRefreshed?: (payload: AuthSessionPayload) => void
+  onSessionCleared?: () => void
+}
+
+let authSessionBridge: AuthSessionBridge = {}
+
+export function registerAuthSessionBridge(bridge: AuthSessionBridge) {
+  authSessionBridge = bridge
+}
+
+export function resetAuthRedirectState() {
+  isRedirectingToLogin = false
+}
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // envia o cookie refresh_token automaticamente
@@ -18,12 +39,11 @@ export const api = axios.create({
 
 // Injeta o access token em toda requisição
 api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = sessionStorage.getItem('access_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
+  const token = getAccessToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
+
   return config
 })
 
@@ -36,10 +56,8 @@ let refreshQueue: Array<{
 }> = []
 
 function clearClientSession() {
-  if (typeof window === 'undefined') return
-
-  sessionStorage.clear()
-  document.cookie = 'has_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax'
+  clearAuthenticatedClientSession()
+  authSessionBridge.onSessionCleared?.()
 }
 
 function shouldBypassAuthRefresh(config?: { url?: string }) {
@@ -120,8 +138,11 @@ api.interceptors.response.use(
         { withCredentials: true },
       )
 
-      const newToken = data.data.accessToken
-      sessionStorage.setItem('access_token', newToken)
+      const payload = data.data as AuthSessionPayload
+      const newToken = payload.accessToken
+      applyAuthenticatedClientSession(payload)
+      isRedirectingToLogin = false
+      authSessionBridge.onSessionRefreshed?.(payload)
 
       flushRefreshQueue(newToken)
 

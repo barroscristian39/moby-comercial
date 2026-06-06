@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { AuthorizationModule } from '../../common/authorization/authorization.module'
 import { PrismaModule } from '../../database/prisma.module'
 import { AuditModule } from '../audit/audit.module'
 import { AccidentsController } from './accidents.controller'
@@ -6,7 +7,7 @@ import { AccidentsRepository } from './accidents.repository'
 import { AccidentsService } from './accidents.service'
 
 @Module({
-  imports: [PrismaModule, AuditModule],
+  imports: [PrismaModule, AuditModule, AuthorizationModule],
   controllers: [AccidentsController],
   providers: [AccidentsRepository, AccidentsService],
   exports: [AccidentsService],

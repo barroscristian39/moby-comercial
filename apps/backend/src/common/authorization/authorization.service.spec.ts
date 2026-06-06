@@ -79,6 +79,82 @@ describe('AuthorizationService', () => {
     ).resolves.toBeUndefined()
   })
 
+  it('falls back to the primary company when explicit companyIds are empty', () => {
+    expect(
+      service.resolveCompanyScope({
+        userId: 'user-a',
+        tenantId: 'tenant-a',
+        companyId: 'company-a',
+        role: Role.TECNICO_SST,
+        companyIds: [],
+        unitIds: ['unit-a'],
+        permissions: [],
+      }),
+    ).toEqual(['company-a'])
+  })
+
+  it('returns an empty company scope instead of broadening tenant access', () => {
+    expect(
+      service.resolveCompanyScope({
+        userId: 'user-a',
+        tenantId: 'tenant-a',
+        companyId: null,
+        role: Role.TECNICO_SST,
+        companyIds: [],
+        unitIds: ['unit-a'],
+        permissions: [],
+      }),
+    ).toEqual([])
+  })
+
+  it('returns an empty unit scope instead of broadening tenant access', () => {
+    expect(
+      service.resolveUnitScope({
+        userId: 'user-a',
+        tenantId: 'tenant-a',
+        companyId: 'company-a',
+        role: Role.TECNICO_SST,
+        companyIds: ['company-a'],
+        unitIds: [],
+        permissions: [],
+      }),
+    ).toEqual([])
+  })
+
+  it('denies direct company access when the operational scope is empty', () => {
+    expect(() =>
+      service.assertCompanyInScope(
+        {
+          userId: 'user-a',
+          tenantId: 'tenant-a',
+          companyId: null,
+          role: Role.TECNICO_SST,
+          companyIds: [],
+          unitIds: ['unit-a'],
+          permissions: [],
+        },
+        'company-a',
+      ),
+    ).toThrow(ForbiddenException)
+  })
+
+  it('denies direct unit access when the operational scope is empty', () => {
+    expect(() =>
+      service.assertUnitInScope(
+        {
+          userId: 'user-a',
+          tenantId: 'tenant-a',
+          companyId: 'company-a',
+          role: Role.TECNICO_SST,
+          companyIds: ['company-a'],
+          unitIds: [],
+          permissions: [],
+        },
+        'unit-a',
+      ),
+    ).toThrow(ForbiddenException)
+  })
+
   it('expands tenant admin scope to every company and unit in its tenant', async () => {
     repository.listCompanyIdsForTenant.mockResolvedValue(['company-a', 'company-b'])
     repository.listUnitIdsForTenant.mockResolvedValue(['unit-a', 'unit-b'])

@@ -53,8 +53,8 @@ export class AccidentsRepository {
     const where: Prisma.AccidentWhereInput = {
       deletedAt: null,
       ...(params.tenantId ? { tenantId: params.tenantId } : {}),
-      ...(params.companyIds?.length ? { companyId: { in: params.companyIds } } : {}),
-      ...(params.unitIds?.length ? { unitId: { in: params.unitIds } } : {}),
+      ...(params.companyIds !== undefined ? { companyId: { in: params.companyIds } } : {}),
+      ...(params.unitIds !== undefined ? { unitId: { in: params.unitIds } } : {}),
       ...(params.status ? { status: params.status as any } : {}),
       ...(params.severity ? { severity: params.severity as any } : {}),
       ...(params.accidentType ? { accidentType: params.accidentType as any } : {}),

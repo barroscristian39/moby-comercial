@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { AuditAction } from '@prisma/client'
 import { RequestUser, Role } from '@moby/shared'
 import { randomUUID } from 'crypto'
+import { AuthorizationService } from '../../common/authorization/authorization.service'
 import { AuditService } from '../audit/audit.service'
 import { DocumentDownloadFormat, DocumentExportService } from './document-export.service'
 import { GenerateDocumentDto } from './dto/generate-document.dto'
@@ -44,6 +45,7 @@ export class DocumentsService {
     private readonly storageService: DocumentStorageService,
     private readonly documentExportService: DocumentExportService,
     private readonly docxTemplateService: DocxTemplateService,
+    private readonly authorizationService: AuthorizationService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -743,31 +745,26 @@ export class DocumentsService {
     this.assertTenantAccess(currentUser, company.tenantId)
     if (currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN) return
 
-    if (currentUser.companyIds?.length && !currentUser.companyIds.includes(company.id)) {
-      this.deny('Empresa fora do escopo permitido')
-    }
+    this.authorizationService.assertCompanyInScope(currentUser, company.id)
   }
 
   private assertEmployeeAccess(currentUser: RequestUser, employee: any) {
     this.assertTenantAccess(currentUser, employee.tenantId)
     if (currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN) return
 
-    if (!currentUser.unitIds?.includes(employee.unitId)) {
-      this.deny('Colaborador fora do escopo de unidade permitido')
+    const employeeCompanyId = employee.companyId ?? employee.unit?.company?.id
+    if (employeeCompanyId) {
+      this.authorizationService.assertCompanyInScope(currentUser, employeeCompanyId, 'Colaborador fora do escopo de empresa permitido')
     }
+    this.authorizationService.assertUnitInScope(currentUser, employee.unitId, 'Colaborador fora do escopo de unidade permitido')
   }
 
   private assertAccidentAccess(currentUser: RequestUser, accident: any) {
     this.assertTenantAccess(currentUser, accident.tenantId)
     if (currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN) return
 
-    if (currentUser.companyIds?.length && !currentUser.companyIds.includes(accident.companyId)) {
-      this.deny('Acidente fora do escopo de empresa permitido')
-    }
-
-    if (currentUser.unitIds?.length && !currentUser.unitIds.includes(accident.unitId)) {
-      this.deny('Acidente fora do escopo de unidade permitido')
-    }
+    this.authorizationService.assertCompanyInScope(currentUser, accident.companyId, 'Acidente fora do escopo de empresa permitido')
+    this.authorizationService.assertUnitInScope(currentUser, accident.unitId, 'Acidente fora do escopo de unidade permitido')
   }
 
   private assertFunctionIsLinkedToEmployeeUnit(employee: any) {

@@ -1,12 +1,16 @@
 import { ForbiddenException, Injectable } from '@nestjs/common'
 import { RequestUser, Role } from '@moby/shared'
+import { AuthorizationService } from '../../common/authorization/authorization.service'
 import { GroRepository } from './gro.repository'
 import { GetGroSummaryDto } from './dto/get-gro-summary.dto'
 import { GroSummaryEntity } from './entities/gro-summary.entity'
 
 @Injectable()
 export class GroService {
-  constructor(private readonly groRepository: GroRepository) {}
+  constructor(
+    private readonly groRepository: GroRepository,
+    private readonly authorizationService: AuthorizationService,
+  ) {}
 
   async getSummary(currentUser: RequestUser, query: GetGroSummaryDto): Promise<{ data: GroSummaryEntity }> {
     const companyIds = this.resolveCompanyScope(currentUser, query.companyId)
@@ -63,40 +67,11 @@ export class GroService {
   }
 
   private resolveCompanyScope(currentUser: RequestUser, requestedCompanyId?: string) {
-    if (currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN) {
-      return requestedCompanyId ? [requestedCompanyId] : undefined
-    }
-
-    const allowedCompanyIds = currentUser.companyIds?.length
-      ? currentUser.companyIds
-      : currentUser.companyId
-        ? [currentUser.companyId]
-        : []
-
-    if (requestedCompanyId) {
-      if (!allowedCompanyIds.includes(requestedCompanyId)) {
-        this.deny('Empresa fora do escopo permitido')
-      }
-      return [requestedCompanyId]
-    }
-
-    return allowedCompanyIds.length ? allowedCompanyIds : undefined
+    return this.authorizationService.resolveCompanyScope(currentUser, requestedCompanyId)
   }
 
   private resolveUnitScope(currentUser: RequestUser, requestedUnitId?: string) {
-    if (currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN) {
-      return requestedUnitId ? [requestedUnitId] : undefined
-    }
-
-    const allowedUnitIds = currentUser.unitIds ?? []
-    if (requestedUnitId) {
-      if (!allowedUnitIds.includes(requestedUnitId)) {
-        this.deny('Unidade fora do escopo permitido')
-      }
-      return [requestedUnitId]
-    }
-
-    return allowedUnitIds.length ? allowedUnitIds : undefined
+    return this.authorizationService.resolveUnitScope(currentUser, requestedUnitId)
   }
 
   private deny(message: string): never {

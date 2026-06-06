@@ -5,16 +5,27 @@ import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/auth.store'
 import { useCompanyStore } from '@/store/company.store'
 import { ToasterProvider } from '@/components/ui/toaster'
+import { Loader2 } from 'lucide-react'
 
-// Restaura sessão e empresa ativa do sessionStorage ao montar a aplicação
-function AuthHydrator() {
+// Reidrata empresa ativa do sessionStorage e restaura a sessão via refresh token HttpOnly.
+function AuthHydrator({ children }: { children: React.ReactNode }) {
   const hydrateAuth    = useAuthStore((s) => s.hydrate)
+  const hasHydrated    = useAuthStore((s) => s.hasHydrated)
   const hydrateCompany = useCompanyStore((s) => s.hydrate)
   useEffect(() => {
-    hydrateAuth()
+    void hydrateAuth()
     hydrateCompany()
   }, [hydrateAuth, hydrateCompany])
-  return null
+
+  if (!hasHydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  return <>{children}</>
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -30,8 +41,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ToasterProvider>
-        <AuthHydrator />
-        {children}
+        <AuthHydrator>{children}</AuthHydrator>
       </ToasterProvider>
     </QueryClientProvider>
   )

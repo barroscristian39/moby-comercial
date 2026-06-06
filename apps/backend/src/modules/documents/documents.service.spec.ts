@@ -24,6 +24,22 @@ describe('DocumentsService', () => {
     buildDownloadFile: jest.fn(),
   }
   const docx = { render: jest.fn() }
+  const authorization = {
+    assertCompanyInScope: jest.fn((user: RequestUser, companyId: string, message = 'Empresa fora do escopo permitido') => {
+      if (!user.companyIds.includes(companyId) && user.companyId !== companyId) {
+        throw new ForbiddenException({
+          error: { code: 'FORBIDDEN_SCOPE', message, statusCode: 403 },
+        })
+      }
+    }),
+    assertUnitInScope: jest.fn((user: RequestUser, unitId: string, message = 'Unidade fora do escopo permitido') => {
+      if (!user.unitIds.includes(unitId)) {
+        throw new ForbiddenException({
+          error: { code: 'FORBIDDEN_SCOPE', message, statusCode: 403 },
+        })
+      }
+    }),
+  }
   const audit = { record: jest.fn() }
 
   let service: DocumentsService
@@ -50,7 +66,7 @@ describe('DocumentsService', () => {
     unit: {
       id: 'unit-1',
       name: 'Unidade Centro',
-      company: { name: 'Empresa SST', tradeName: null, cnpj: '12345678000199' },
+      company: { id: 'company-1', name: 'Empresa SST', tradeName: null, cnpj: '12345678000199' },
     },
     jobFunction: {
       id: 'function-1',
@@ -62,7 +78,14 @@ describe('DocumentsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    service = new DocumentsService(repository as any, storage as any, exportService as any, docx as any, audit as any)
+    service = new DocumentsService(
+      repository as any,
+      storage as any,
+      exportService as any,
+      docx as any,
+      authorization as any,
+      audit as any,
+    )
   })
 
   it('gera documento usando a unidade do colaborador e o template ativo da função', async () => {

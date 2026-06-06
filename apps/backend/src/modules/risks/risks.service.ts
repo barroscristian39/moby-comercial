@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { AuditAction } from '@prisma/client'
 import { PaginationDto, RequestUser, RiskLevel, Role } from '@moby/shared'
+import { AuthorizationService } from '../../common/authorization/authorization.service'
 import { AuditService } from '../audit/audit.service'
 import { CreateRiskDto } from './dto/create-risk.dto'
 import { UpdateRiskDto } from './dto/update-risk.dto'
@@ -11,6 +12,7 @@ import { RisksRepository } from './risks.repository'
 export class RisksService {
   constructor(
     private readonly risksRepository: RisksRepository,
+    private readonly authorizationService: AuthorizationService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -146,33 +148,11 @@ export class RisksService {
   }
 
   private resolveCompanyScope(currentUser: RequestUser, requestedCompanyId?: string) {
-    if (currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN) {
-      return requestedCompanyId ? [requestedCompanyId] : undefined
-    }
-
-    if (requestedCompanyId) {
-      if (!currentUser.companyIds?.includes(requestedCompanyId)) {
-        this.deny('Empresa fora do escopo permitido')
-      }
-      return [requestedCompanyId]
-    }
-
-    return currentUser.companyIds
+    return this.authorizationService.resolveCompanyScope(currentUser, requestedCompanyId)
   }
 
   private resolveUnitScope(currentUser: RequestUser, requestedUnitId?: string) {
-    if (currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN) {
-      return requestedUnitId ? [requestedUnitId] : undefined
-    }
-
-    if (requestedUnitId) {
-      if (!currentUser.unitIds?.includes(requestedUnitId)) {
-        this.deny('Unidade fora do escopo permitido')
-      }
-      return [requestedUnitId]
-    }
-
-    return currentUser.unitIds
+    return this.authorizationService.resolveUnitScope(currentUser, requestedUnitId)
   }
 
   private async resolveScope(unitId: string, jobFunctionId: string | null | undefined, currentUser: RequestUser) {
@@ -193,12 +173,8 @@ export class RisksService {
       }
 
       if (currentUser.role !== Role.TENANT_ADMIN) {
-        if (currentUser.companyIds?.length && !currentUser.companyIds.includes(unit.companyId)) {
-          this.deny('Empresa fora do escopo permitido')
-        }
-        if (currentUser.unitIds?.length && !currentUser.unitIds.includes(unit.id)) {
-          this.deny('Unidade fora do escopo permitido')
-        }
+        this.authorizationService.assertCompanyInScope(currentUser, unit.companyId)
+        this.authorizationService.assertUnitInScope(currentUser, unit.id)
       }
     }
 
@@ -255,13 +231,8 @@ export class RisksService {
 
     if (currentUser.role === Role.TENANT_ADMIN) return
 
-    if (currentUser.companyIds?.length && !currentUser.companyIds.includes(risk.companyId)) {
-      this.deny('Empresa fora do escopo permitido')
-    }
-
-    if (currentUser.unitIds?.length && !currentUser.unitIds.includes(risk.unitId)) {
-      this.deny('Unidade fora do escopo permitido')
-    }
+    this.authorizationService.assertCompanyInScope(currentUser, risk.companyId)
+    this.authorizationService.assertUnitInScope(currentUser, risk.unitId)
   }
 
   private mapToEntity(risk: any): RiskEntity {

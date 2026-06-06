@@ -9,6 +9,7 @@ import {
   Role,
 } from '@moby/shared'
 import { randomUUID } from 'crypto'
+import { AuthorizationService } from '../../common/authorization/authorization.service'
 import { AuditService } from '../audit/audit.service'
 import { CreateAccidentDto } from './dto/create-accident.dto'
 import { UploadAccidentEvidenceDto } from './dto/upload-accident-evidence.dto'
@@ -30,6 +31,7 @@ type UploadedAccidentEvidence = {
 export class AccidentsService {
   constructor(
     private readonly accidentsRepository: AccidentsRepository,
+    private readonly authorizationService: AuthorizationService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -457,33 +459,11 @@ export class AccidentsService {
   }
 
   private resolveCompanyScope(currentUser: RequestUser, requestedCompanyId?: string) {
-    if (currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN) {
-      return requestedCompanyId ? [requestedCompanyId] : undefined
-    }
-
-    if (requestedCompanyId) {
-      if (!currentUser.companyIds?.includes(requestedCompanyId)) {
-        this.deny('Empresa fora do escopo permitido')
-      }
-      return [requestedCompanyId]
-    }
-
-    return currentUser.companyIds
+    return this.authorizationService.resolveCompanyScope(currentUser, requestedCompanyId)
   }
 
   private resolveUnitScope(currentUser: RequestUser, requestedUnitId?: string) {
-    if (currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN) {
-      return requestedUnitId ? [requestedUnitId] : undefined
-    }
-
-    if (requestedUnitId) {
-      if (!currentUser.unitIds?.includes(requestedUnitId)) {
-        this.deny('Unidade fora do escopo permitido')
-      }
-      return [requestedUnitId]
-    }
-
-    return currentUser.unitIds
+    return this.authorizationService.resolveUnitScope(currentUser, requestedUnitId)
   }
 
   private async resolveScope(employeeId: string, currentUser: RequestUser) {
@@ -500,13 +480,8 @@ export class AccidentsService {
       }
 
       if (currentUser.role !== Role.TENANT_ADMIN) {
-        if (currentUser.companyIds?.length && !currentUser.companyIds.includes(employee.companyId)) {
-          this.deny('Empresa fora do escopo permitido')
-        }
-
-        if (currentUser.unitIds?.length && !currentUser.unitIds.includes(employee.unitId)) {
-          this.deny('Unidade fora do escopo permitido')
-        }
+        this.authorizationService.assertCompanyInScope(currentUser, employee.companyId)
+        this.authorizationService.assertUnitInScope(currentUser, employee.unitId)
       }
     }
 
@@ -549,13 +524,8 @@ export class AccidentsService {
 
     if (currentUser.role === Role.TENANT_ADMIN) return
 
-    if (currentUser.companyIds?.length && !currentUser.companyIds.includes(accident.companyId)) {
-      this.deny('Empresa fora do escopo permitido')
-    }
-
-    if (currentUser.unitIds?.length && !currentUser.unitIds.includes(accident.unitId)) {
-      this.deny('Unidade fora do escopo permitido')
-    }
+    this.authorizationService.assertCompanyInScope(currentUser, accident.companyId)
+    this.authorizationService.assertUnitInScope(currentUser, accident.unitId)
   }
 
   private mapToEntity(accident: any): AccidentEntity {

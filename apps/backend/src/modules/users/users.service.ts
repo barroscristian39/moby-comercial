@@ -12,9 +12,8 @@ import { AuditService } from '../audit/audit.service'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { UserEntity } from './entities/user.entity'
+import { isOperationalRole } from './user-scope-policy'
 import { UsersRepository } from './users.repository'
-
-const OPERATIONAL_ROLES = [Role.TECNICO_SST, Role.GESTOR, Role.RH, Role.CONSULTA]
 
 @Injectable()
 export class UsersService {
@@ -212,7 +211,7 @@ export class UsersService {
 
   private assertOperationalScope(role: string, companyIds: string[]) {
     if (role === Role.SUPER_ADMIN || role === Role.TENANT_ADMIN) return
-    if (!OPERATIONAL_ROLES.includes(role as Role)) {
+    if (!isOperationalRole(role)) {
       this.deny('Perfil de usuário inválido')
     }
     if (!companyIds.length) {

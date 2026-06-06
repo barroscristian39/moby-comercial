@@ -73,6 +73,6 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CorsMiddleware).forRoutes('*')
+    consumer.apply(CorsMiddleware).forRoutes('*path')
   }
 }

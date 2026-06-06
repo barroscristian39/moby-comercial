@@ -30,6 +30,8 @@ function SelecionarEmpresaContent() {
   const router           = useRouter()
   const searchParams     = useSearchParams()
   const user             = useAuthStore((s) => s.user)
+  const hasHydrated      = useAuthStore((s) => s.hasHydrated)
+  const isAuthenticated  = useAuthStore((s) => s.isAuthenticated)
   const logout           = useAuthStore((s) => s.logout)
   const setActiveCompany = useCompanyStore((s) => s.setActiveCompany)
 
@@ -53,15 +55,11 @@ function SelecionarEmpresaContent() {
   }, [searchParams, router])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const hasUser = sessionStorage.getItem('auth_user')
-    const hasToken = sessionStorage.getItem('access_token')
-    if (!hasUser || !hasToken) {
-      document.cookie = 'has_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax'
+    if (!hasHydrated) return
+    if (!isAuthenticated) {
       router.replace('/login')
     }
-  }, [router])
+  }, [hasHydrated, isAuthenticated, router])
 
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const { data: empresasResponse, isLoading, isError, refetch } = useCompanies(

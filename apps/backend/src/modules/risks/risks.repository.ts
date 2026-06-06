@@ -42,8 +42,8 @@ export class RisksRepository {
     const where: Prisma.RiskWhereInput = {
       deletedAt: null,
       ...(params.tenantId ? { tenantId: params.tenantId } : {}),
-      ...(params.companyIds?.length ? { companyId: { in: params.companyIds } } : {}),
-      ...(params.unitIds?.length ? { unitId: { in: params.unitIds } } : {}),
+      ...(params.companyIds !== undefined ? { companyId: { in: params.companyIds } } : {}),
+      ...(params.unitIds !== undefined ? { unitId: { in: params.unitIds } } : {}),
       ...(params.isActive === undefined ? {} : { isActive: params.isActive }),
       ...(params.type ? { type: params.type as any } : {}),
       ...(params.level ? { level: params.level as any } : {}),

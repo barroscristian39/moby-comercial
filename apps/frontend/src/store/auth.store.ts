@@ -1,90 +1,92 @@
 import { create } from 'zustand'
-import { api } from '@/lib/api'
-
-export interface AuthUser {
-  id: string
-  name: string
-  email: string
-  role: string
-  tenantId: string | null
-  companyId: string | null
-  companyIds: string[]
-  unitIds: string[]
-}
-
-export interface AuthAccessContext {
-  user_id: string
-  tenant_id: string | null
-  role: string
-  companies_allowed: string[]
-  units_allowed: string[]
-  available_permissions: string[]
-  menus: Array<{
-    key: string
-    label: string
-    href: string
-    permission?: string
-  }>
-}
-
-export interface PendingLoginVerification {
-  challengeId: string
-  email: string
-  deliveryHint: string
-  message: string
-}
-
-export type AuthLoginResult =
-  | { status: 'authenticated'; user: AuthUser }
-  | { status: 'verification_required'; verification: PendingLoginVerification }
+import { api, registerAuthSessionBridge, resetAuthRedirectState } from '@/lib/api'
+import {
+  applyAuthenticatedClientSession,
+  clearAuthenticatedClientSession,
+} from '@/lib/auth-session'
+import {
+  AuthAccessContext,
+  AuthLoginResult,
+  AuthSessionPayload,
+  AuthUser,
+  PendingLoginVerification,
+} from '@/lib/auth-types'
 
 interface AuthState {
   user: AuthUser | null
   accessContext: AuthAccessContext | null
   isAuthenticated: boolean
+  hasHydrated: boolean
+  isHydrating: boolean
   login: (email: string, password: string) => Promise<AuthLoginResult>
   verifyLoginCode: (challengeId: string, code: string) => Promise<AuthUser>
   resendLoginCode: (challengeId: string) => Promise<PendingLoginVerification>
   logout: () => Promise<void>
-  hydrate: () => void
+  hydrate: () => Promise<void>
 }
 
-function persistAuthenticatedSession(
+let hydratePromise: Promise<void> | null = null
+
+function applyAuthenticatedState(
   set: (state: Partial<AuthState>) => void,
-  payload: {
-    accessToken: string
-    user: AuthUser
-    context: AuthAccessContext
-  },
+  payload: AuthSessionPayload,
 ) {
-  sessionStorage.setItem('access_token', payload.accessToken)
-  sessionStorage.setItem('user_id', payload.user.id)
-  sessionStorage.setItem('auth_user', JSON.stringify(payload.user))
-  sessionStorage.setItem('access_context', JSON.stringify(payload.context))
-
-  // Cookie não-HttpOnly para o middleware do Next.js conseguir detectar a sessão.
-  // O refresh_token seguro (HttpOnly) é setado pelo backend; este é apenas um sinal de rota.
-  document.cookie = 'has_session=1; path=/; SameSite=Lax'
-
-  set({ user: payload.user, accessContext: payload.context, isAuthenticated: true })
+  resetAuthRedirectState()
+  applyAuthenticatedClientSession(payload)
+  set({
+    user: payload.user,
+    accessContext: payload.context,
+    isAuthenticated: true,
+  })
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+function clearAuthenticatedState(
+  set: (state: Partial<AuthState>) => void,
+  extras?: Partial<AuthState>,
+) {
+  clearAuthenticatedClientSession()
+  set({
+    user: null,
+    accessContext: null,
+    isAuthenticated: false,
+    ...extras,
+  })
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessContext: null,
   isAuthenticated: false,
+  hasHydrated: false,
+  isHydrating: false,
 
-  hydrate() {
+  async hydrate() {
     if (typeof window === 'undefined') return
-    const rawUser = sessionStorage.getItem('auth_user')
-    const rawContext = sessionStorage.getItem('access_context')
-    if (rawUser) {
-      set({
-        user: JSON.parse(rawUser),
-        accessContext: rawContext ? JSON.parse(rawContext) : null,
-        isAuthenticated: true,
-      })
+
+    if (hydratePromise) {
+      await hydratePromise
+      return
     }
+
+    if (get().hasHydrated && !get().isHydrating) {
+      return
+    }
+
+    set({ isHydrating: true })
+
+    hydratePromise = (async () => {
+      try {
+        const { data } = await api.post('/auth/refresh', {})
+        applyAuthenticatedState(set, data.data)
+      } catch {
+        clearAuthenticatedState(set)
+      } finally {
+        set({ hasHydrated: true, isHydrating: false })
+        hydratePromise = null
+      }
+    })()
+
+    await hydratePromise
   },
 
   async login(email, password) {
@@ -103,7 +105,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     }
 
-    persistAuthenticatedSession(set, payload)
+    applyAuthenticatedState(set, payload)
     return { status: 'authenticated', user: payload.user }
   },
 
@@ -111,7 +113,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { data } = await api.post('/auth/login/verify', { challengeId, code })
     const payload = data.data
 
-    persistAuthenticatedSession(set, payload)
+    applyAuthenticatedState(set, payload)
     return payload.user
   },
 
@@ -133,10 +135,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       // Backend indisponível — o logout local continua normalmente
     } finally {
-      sessionStorage.clear()
-      // Remove o cookie de sinalização ao sair
-      document.cookie = 'has_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC'
-      set({ user: null, accessContext: null, isAuthenticated: false })
+      clearAuthenticatedState(set)
     }
   },
 }))
+
+registerAuthSessionBridge({
+  onSessionRefreshed(payload) {
+    useAuthStore.setState({
+      user: payload.user,
+      accessContext: payload.context,
+      isAuthenticated: true,
+    })
+  },
+  onSessionCleared() {
+    useAuthStore.setState({
+      user: null,
+      accessContext: null,
+      isAuthenticated: false,
+    })
+  },
+})

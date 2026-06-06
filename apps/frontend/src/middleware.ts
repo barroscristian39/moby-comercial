@@ -14,8 +14,8 @@ export function middleware(request: NextRequest) {
   const isPublic      = PUBLIC_PATHS.some((p) => pathname.startsWith(p))
   const isSessionOnly = SESSION_ONLY_PATHS.some((p) => pathname.startsWith(p))
 
-  // O access token fica em sessionStorage (não acessível no middleware).
-  // Usamos 'has_session' — cookie setado pelo frontend após login e removido no logout.
+  // O access token vive apenas em memória no cliente, então o middleware não consegue lê-lo.
+  // Usamos 'has_session' só como sinal de rota; a sessão real continua sendo restaurada via refresh token HttpOnly.
   const hasSession = request.cookies.has('has_session')
 
   // Rota privada sem sessão → redireciona para login

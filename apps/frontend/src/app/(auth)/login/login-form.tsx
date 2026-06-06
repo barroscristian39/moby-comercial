@@ -23,9 +23,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useSetupStatus } from '@/hooks/use-setup'
+import { PendingLoginVerification } from '@/lib/auth-types'
 import { cn } from '@/lib/utils'
 import { useCompanyStore } from '@/store/company.store'
-import { PendingLoginVerification, useAuthStore } from '@/store/auth.store'
+import { useAuthStore } from '@/store/auth.store'
 
 const PENDING_LOGIN_VERIFICATION_KEY = 'pending_login_verification'
 
@@ -50,6 +51,8 @@ export function LoginForm() {
   const login = useAuthStore((s) => s.login)
   const verifyLoginCode = useAuthStore((s) => s.verifyLoginCode)
   const resendLoginCode = useAuthStore((s) => s.resendLoginCode)
+  const hasHydrated = useAuthStore((s) => s.hasHydrated)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const clearActiveCompany = useCompanyStore((s) => s.clearActiveCompany)
   const { data: setupStatus, isLoading: isCheckingSetup } = useSetupStatus()
   const [feedback, setFeedback] = useState<Feedback | null>(null)
@@ -79,6 +82,17 @@ export function LoginForm() {
   useEffect(() => {
     register('code')
   }, [register])
+
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated) return
+
+    const redirect = searchParams.get('redirect')
+    const destination = redirect
+      ? `/selecionar-empresa?redirect=${encodeURIComponent(redirect)}`
+      : '/selecionar-empresa'
+
+    router.replace(destination)
+  }, [hasHydrated, isAuthenticated, router, searchParams])
 
   useEffect(() => {
     if (typeof window === 'undefined') return

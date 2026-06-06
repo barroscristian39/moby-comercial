@@ -128,8 +128,8 @@ export class GroRepository {
     return {
       deletedAt: null,
       ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
-      ...(scope.companyIds?.length ? { companyId: { in: scope.companyIds } } : {}),
-      ...(scope.unitIds?.length ? { unitId: { in: scope.unitIds } } : {}),
+      ...(scope.companyIds !== undefined ? { companyId: { in: scope.companyIds } } : {}),
+      ...(scope.unitIds !== undefined ? { unitId: { in: scope.unitIds } } : {}),
     }
   }
 
@@ -138,8 +138,8 @@ export class GroRepository {
       deletedAt: null,
       isActive: true,
       ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
-      ...(scope.companyIds?.length ? { companyId: { in: scope.companyIds } } : {}),
-      ...(scope.unitIds?.length ? { id: { in: scope.unitIds } } : {}),
+      ...(scope.companyIds !== undefined ? { companyId: { in: scope.companyIds } } : {}),
+      ...(scope.unitIds !== undefined ? { id: { in: scope.unitIds } } : {}),
     }
   }
 
@@ -148,8 +148,8 @@ export class GroRepository {
       deletedAt: null,
       isActive: true,
       ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
-      ...(scope.companyIds?.length ? { companyId: { in: scope.companyIds } } : {}),
-      ...(scope.unitIds?.length ? { unitId: { in: scope.unitIds } } : {}),
+      ...(scope.companyIds !== undefined ? { companyId: { in: scope.companyIds } } : {}),
+      ...(scope.unitIds !== undefined ? { unitId: { in: scope.unitIds } } : {}),
     }
   }
 
@@ -158,7 +158,7 @@ export class GroRepository {
       deletedAt: null,
       isActive: true,
       ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
-      ...(scope.companyIds?.length ? { companyId: { in: scope.companyIds } } : {}),
+      ...(scope.companyIds !== undefined ? { companyId: { in: scope.companyIds } } : {}),
     }
   }
 

@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { AuditAction } from '@prisma/client'
 import { PaginationDto, RequestUser, Role } from '@moby/shared'
+import { AuthorizationService } from '../../common/authorization/authorization.service'
 import { AuditService } from '../audit/audit.service'
 import { CreateFunctionDto } from './dto/create-function.dto'
 import { UpdateFunctionDto } from './dto/update-function.dto'
@@ -11,6 +12,7 @@ import { FunctionsRepository } from './functions.repository'
 export class FunctionsService {
   constructor(
     private readonly functionsRepository: FunctionsRepository,
+    private readonly authorizationService: AuthorizationService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -20,14 +22,12 @@ export class FunctionsService {
     filters: { tenantId?: string; unitId?: string; search?: string },
   ) {
     const tenantId = currentUser.role === Role.SUPER_ADMIN ? filters.tenantId : currentUser.tenantId ?? undefined
-    const unitIds =
-      currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN
-        ? undefined
-        : currentUser.unitIds
+    const companyIds = this.authorizationService.resolveCompanyScope(currentUser)
+    const unitIds = this.authorizationService.resolveUnitScope(currentUser, filters.unitId)
 
     const { items, total } = await this.functionsRepository.findAll({
       tenantId,
-      unitId: filters.unitId,
+      companyIds,
       unitIds,
       page: pagination.page,
       perPage: pagination.perPage,
@@ -176,12 +176,13 @@ export class FunctionsService {
     }
     if (currentUser.role === Role.TENANT_ADMIN) return
 
-    // Funções sem unidades associadas são acessíveis a todos do tenant (compatibilidade com módulo legado)
-    const functionUnits: any[] = jobFunction.functionUnits ?? []
-    if (functionUnits.length === 0) return
+    this.authorizationService.assertCompanyInScope(currentUser, jobFunction.companyId, 'Função fora do escopo de empresa permitido')
 
-    const allowedUnits = new Set(currentUser.unitIds ?? [])
-    const hasUnitAccess = functionUnits.some((link: any) => allowedUnits.has(link.unitId))
+    const functionUnits: any[] = jobFunction.functionUnits ?? []
+    const allowedUnits = new Set(this.authorizationService.resolveUnitScope(currentUser) ?? [])
+    const hasUnitAccess =
+      functionUnits.some((link: any) => allowedUnits.has(link.unitId))
+      || (jobFunction.unitId ? allowedUnits.has(jobFunction.unitId) : false)
     if (!hasUnitAccess) {
       this.deny('Função fora do escopo de unidades permitido')
     }

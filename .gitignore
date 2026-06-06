@@ -34,6 +34,10 @@ pnpm-debug.log*
 # Testes
 coverage/
 .nyc_output/
+.codex-run/
+apps/backend/psql_schema.txt
+apps/backend/scripts/test-*.ts
+apps/backend/src/modules/auth/assets/moby-email-logo.png
 
 # TypeScript
 *.tsbuildinfo
