@@ -4,47 +4,29 @@
 // Organizada em seções: Perfil do usuário, Notificações e Preferências.
 
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { User, Bell, Settings, Save, Shield } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { useAuthStore } from '@/store/auth.store'
 
-// ─── Validação ───────────────────────────────────────────────────────────────
-
-// Schema para atualização do perfil do usuário
-const perfilSchema = z.object({
-  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
-  email: z.string().email('E-mail inválido'),
-})
-
-// Schema para alteração de senha
-const senhaSchema = z.object({
-  senhaAtual: z.string().min(1, 'Informe a senha atual'),
-  novaSenha: z.string().min(8, 'A nova senha deve ter pelo menos 8 caracteres'),
-  confirmarSenha: z.string().min(1, 'Confirme a nova senha'),
-}).refine((d) => d.novaSenha === d.confirmarSenha, {
-  message: 'As senhas não coincidem',
-  path: ['confirmarSenha'],
-})
-
-type PerfilFormData = z.infer<typeof perfilSchema>
-type SenhaFormData  = z.infer<typeof senhaSchema>
-
 // ─── Componente: Toggle de notificação ───────────────────────────────────────
 
 // Componente reutilizável para cada opção de notificação com toggle on/off
-function NotificacaoToggle({ label, descricao, checked, onChange }: {
-  label: string; descricao: string; checked: boolean; onChange: (v: boolean) => void
+function NotificacaoToggle({ label, descricao, checked, onChange, disabled = false }: {
+  label: string
+  descricao: string
+  checked: boolean
+  onChange: (v: boolean) => void
+  disabled?: boolean
 }) {
   return (
-    <div className="flex items-center justify-between py-3">
+    <div className={`flex items-center justify-between py-3 ${disabled ? 'opacity-60' : ''}`}>
       <div>
         <p className="text-sm font-medium text-foreground">{label}</p>
         <p className="text-xs text-muted-foreground">{descricao}</p>
@@ -52,8 +34,9 @@ function NotificacaoToggle({ label, descricao, checked, onChange }: {
       {/* Toggle visual — substituir por componente Switch quando disponível */}
       <button
         type="button"
+        disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${checked ? 'bg-primary' : 'bg-muted'}`}
+        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${checked ? 'bg-primary' : 'bg-muted'} ${disabled ? 'cursor-not-allowed' : ''}`}
       >
         <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
       </button>
@@ -66,6 +49,7 @@ function NotificacaoToggle({ label, descricao, checked, onChange }: {
 export default function ConfiguracoesPage() {
   // Dados do usuário logado vindo do store de autenticação
   const user = useAuthStore((s) => s.user)
+  const settingsWriteEnabled = false
 
   // Controla qual seção está ativa (perfil, notificações, preferências)
   const [secaoAtiva, setSecaoAtiva] = useState<'perfil' | 'notificacoes' | 'preferencias'>('perfil')
@@ -79,31 +63,6 @@ export default function ConfiguracoesPage() {
     novosRiscos:        false,
     relatorioSemanal:   false,
   })
-
-  // Formulário de edição de perfil
-  const perfilForm = useForm<PerfilFormData>({
-    resolver: zodResolver(perfilSchema),
-    defaultValues: { name: user?.name ?? '', email: user?.email ?? '' },
-  })
-
-  // Formulário de troca de senha
-  const senhaForm = useForm<SenhaFormData>({
-    resolver: zodResolver(senhaSchema),
-    defaultValues: { senhaAtual: '', novaSenha: '', confirmarSenha: '' },
-  })
-
-  // TODO: integrar com PATCH /api/users/:id para salvar perfil
-  function salvarPerfil(data: PerfilFormData) {
-    console.log('Salvando perfil:', data)
-    alert('Perfil atualizado com sucesso! (integração com API pendente)')
-  }
-
-  // TODO: integrar com POST /api/auth/change-password para trocar senha
-  function trocarSenha(data: SenhaFormData) {
-    console.log('Trocando senha:', data)
-    senhaForm.reset()
-    alert('Senha alterada com sucesso! (integração com API pendente)')
-  }
 
   // Menu de navegação lateral das seções de configuração
   const secoes = [
@@ -144,10 +103,19 @@ export default function ConfiguracoesPage() {
                 {/* Card de informações do perfil */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Dados do Perfil</CardTitle>
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="text-sm">Dados do Perfil</CardTitle>
+                      <Badge variant="warning">Somente leitura</Badge>
+                    </div>
                     <CardDescription>Atualize seu nome e e-mail de acesso ao sistema.</CardDescription>
                   </CardHeader>
                   <CardContent>
+                    <Alert className="mb-6 border-warning/30 bg-warning/10">
+                      <AlertDescription>
+                        A edição de perfil está temporariamente desabilitada até a integração segura com a API.
+                        Enquanto isso, os dados abaixo ficam disponíveis apenas para consulta.
+                      </AlertDescription>
+                    </Alert>
                     {/* Avatar com iniciais do usuário */}
                     <div className="flex items-center gap-4 mb-6">
                       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white text-lg font-bold">
@@ -162,57 +130,63 @@ export default function ConfiguracoesPage() {
                         </span>
                       </div>
                     </div>
-                    <form onSubmit={perfilForm.handleSubmit(salvarPerfil)} className="space-y-4">
+                    <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label>Nome Completo *</Label>
-                          <Input {...perfilForm.register('name')} />
-                          {perfilForm.formState.errors.name && <p className="text-xs text-destructive">{perfilForm.formState.errors.name.message}</p>}
+                          <Input value={user?.name ?? ''} readOnly className="bg-muted/50" />
                         </div>
                         <div className="space-y-1.5">
                           <Label>E-mail *</Label>
-                          <Input type="email" {...perfilForm.register('email')} />
-                          {perfilForm.formState.errors.email && <p className="text-xs text-destructive">{perfilForm.formState.errors.email.message}</p>}
+                          <Input type="email" value={user?.email ?? ''} readOnly className="bg-muted/50" />
                         </div>
                       </div>
                       <div className="flex justify-end">
-                        <Button type="submit" size="sm">
-                          <Save className="h-3.5 w-3.5 mr-1.5" />Salvar Perfil
+                        <Button type="button" size="sm" disabled={!settingsWriteEnabled}>
+                          <Save className="h-3.5 w-3.5 mr-1.5" />Integração pendente
                         </Button>
                       </div>
-                    </form>
+                    </div>
                   </CardContent>
                 </Card>
 
                 {/* Card de troca de senha */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Alterar Senha</CardTitle>
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="text-sm">Alterar Senha</CardTitle>
+                      <Badge variant="warning">Temporariamente indisponível</Badge>
+                    </div>
                     <CardDescription>Use uma senha forte com pelo menos 8 caracteres.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <form onSubmit={senhaForm.handleSubmit(trocarSenha)} className="space-y-4">
+                    <Alert className="mb-4 border-warning/30 bg-warning/10">
+                      <AlertDescription>
+                        A troca de senha nesta tela foi bloqueada até existir um endpoint seguro de alteração.
+                        Até lá, use o fluxo <strong>Esqueceu a senha?</strong> na tela de login.
+                      </AlertDescription>
+                    </Alert>
+                    <div className="space-y-4">
                       <div className="space-y-1.5">
                         <Label>Senha Atual *</Label>
-                        <Input type="password" placeholder="••••••••" {...senhaForm.register('senhaAtual')} />
-                        {senhaForm.formState.errors.senhaAtual && <p className="text-xs text-destructive">{senhaForm.formState.errors.senhaAtual.message}</p>}
+                        <Input type="password" placeholder="••••••••" disabled />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label>Nova Senha *</Label>
-                          <Input type="password" placeholder="••••••••" {...senhaForm.register('novaSenha')} />
-                          {senhaForm.formState.errors.novaSenha && <p className="text-xs text-destructive">{senhaForm.formState.errors.novaSenha.message}</p>}
+                          <Input type="password" placeholder="••••••••" disabled />
                         </div>
                         <div className="space-y-1.5">
                           <Label>Confirmar Nova Senha *</Label>
-                          <Input type="password" placeholder="••••••••" {...senhaForm.register('confirmarSenha')} />
-                          {senhaForm.formState.errors.confirmarSenha && <p className="text-xs text-destructive">{senhaForm.formState.errors.confirmarSenha.message}</p>}
+                          <Input type="password" placeholder="••••••••" disabled />
                         </div>
                       </div>
                       <div className="flex justify-end">
-                        <Button type="submit" size="sm" variant="outline">Alterar Senha</Button>
+                        <Button type="button" size="sm" variant="outline" disabled={!settingsWriteEnabled}>
+                          Alterar Senha
+                        </Button>
                       </div>
-                    </form>
+                    </div>
                   </CardContent>
                 </Card>
               </>
@@ -222,47 +196,61 @@ export default function ConfiguracoesPage() {
             {secaoAtiva === 'notificacoes' && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">Preferências de Notificação</CardTitle>
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle className="text-sm">Preferências de Notificação</CardTitle>
+                    <Badge variant="warning">Persistência indisponível</Badge>
+                  </div>
                   <CardDescription>Escolha quais alertas deseja receber por e-mail e no sistema.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  <Alert className="mb-4 border-warning/30 bg-warning/10">
+                    <AlertDescription>
+                      As preferências abaixo ficam visíveis, mas o salvamento foi desabilitado até a integração
+                      segura com a API de notificações do usuário.
+                    </AlertDescription>
+                  </Alert>
                   <div className="space-y-1 divide-y divide-border">
                     <NotificacaoToggle
                       label="EPI com CA a vencer" descricao="Alerta 90 dias antes do vencimento do CA"
                       checked={notificacoes.epiVencendo}
                       onChange={(v) => setNotificacoes((p) => ({ ...p, epiVencendo: v }))}
+                      disabled={!settingsWriteEnabled}
                     />
                     <NotificacaoToggle
                       label="Exame periódico a vencer" descricao="Alerta 60 dias antes do vencimento do exame"
                       checked={notificacoes.exameVencendo}
                       onChange={(v) => setNotificacoes((p) => ({ ...p, exameVencendo: v }))}
+                      disabled={!settingsWriteEnabled}
                     />
                     <NotificacaoToggle
                       label="Treinamento a vencer" descricao="Alerta 90 dias antes do vencimento do treinamento"
                       checked={notificacoes.treinamentoVencendo}
                       onChange={(v) => setNotificacoes((p) => ({ ...p, treinamentoVencendo: v }))}
+                      disabled={!settingsWriteEnabled}
                     />
                     <NotificacaoToggle
                       label="Plano de ação atrasado" descricao="Notifica quando um controle passa da data limite"
                       checked={notificacoes.planoAtrasado}
                       onChange={(v) => setNotificacoes((p) => ({ ...p, planoAtrasado: v }))}
+                      disabled={!settingsWriteEnabled}
                     />
                     <NotificacaoToggle
                       label="Novos riscos identificados" descricao="Notifica quando um novo risco é cadastrado"
                       checked={notificacoes.novosRiscos}
                       onChange={(v) => setNotificacoes((p) => ({ ...p, novosRiscos: v }))}
+                      disabled={!settingsWriteEnabled}
                     />
                     <NotificacaoToggle
                       label="Relatório semanal de conformidade" descricao="Resumo semanal por e-mail toda segunda-feira"
                       checked={notificacoes.relatorioSemanal}
                       onChange={(v) => setNotificacoes((p) => ({ ...p, relatorioSemanal: v }))}
+                      disabled={!settingsWriteEnabled}
                     />
                   </div>
                   <Separator className="my-4" />
                   <div className="flex justify-end">
-                    {/* TODO: integrar com PATCH /api/users/:id/notifications */}
-                    <Button size="sm" onClick={() => alert('Preferências salvas! (integração pendente)')}>
-                      <Save className="h-3.5 w-3.5 mr-1.5" />Salvar Preferências
+                    <Button type="button" size="sm" disabled={!settingsWriteEnabled}>
+                      <Save className="h-3.5 w-3.5 mr-1.5" />Integração pendente
                     </Button>
                   </div>
                 </CardContent>
@@ -273,29 +261,38 @@ export default function ConfiguracoesPage() {
             {secaoAtiva === 'preferencias' && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">Preferências do Sistema</CardTitle>
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle className="text-sm">Preferências do Sistema</CardTitle>
+                    <Badge variant="warning">Somente leitura</Badge>
+                  </div>
                   <CardDescription>Configurações gerais de exibição e comportamento.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  <Alert className="border-warning/30 bg-warning/10">
+                    <AlertDescription>
+                      Estas preferências ainda não possuem persistência segura no backend e, por isso, estão
+                      bloqueadas para edição nesta versão.
+                    </AlertDescription>
+                  </Alert>
                   {/* Configuração de antecedência dos alertas */}
                   <div className="space-y-3">
                     <p className="text-sm font-medium text-foreground">Antecedência dos Alertas</p>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-xs">EPI — dias antes do vencimento do CA</Label>
-                        <Input type="number" defaultValue={90} min={7} max={365} className="h-8 text-xs" />
+                        <Input type="number" defaultValue={90} min={7} max={365} className="h-8 text-xs" disabled />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Exames — dias de antecedência</Label>
-                        <Input type="number" defaultValue={60} min={7} max={365} className="h-8 text-xs" />
+                        <Input type="number" defaultValue={60} min={7} max={365} className="h-8 text-xs" disabled />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Treinamentos — dias de antecedência</Label>
-                        <Input type="number" defaultValue={90} min={7} max={365} className="h-8 text-xs" />
+                        <Input type="number" defaultValue={90} min={7} max={365} className="h-8 text-xs" disabled />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Planos de Ação — dias de antecedência</Label>
-                        <Input type="number" defaultValue={15} min={1} max={90} className="h-8 text-xs" />
+                        <Input type="number" defaultValue={15} min={1} max={90} className="h-8 text-xs" disabled />
                       </div>
                     </div>
                   </div>
@@ -310,8 +307,8 @@ export default function ConfiguracoesPage() {
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <Button size="sm" onClick={() => alert('Preferências salvas! (integração pendente)')}>
-                      <Save className="h-3.5 w-3.5 mr-1.5" />Salvar Preferências
+                    <Button type="button" size="sm" disabled={!settingsWriteEnabled}>
+                      <Save className="h-3.5 w-3.5 mr-1.5" />Integração pendente
                     </Button>
                   </div>
                 </CardContent>

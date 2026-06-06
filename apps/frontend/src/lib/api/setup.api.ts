@@ -2,6 +2,7 @@ import { api } from '@/lib/api'
 
 export interface SetupStatus {
   requiresBootstrap: boolean
+  bootstrapEnabled: boolean
 }
 
 export interface BootstrapSetupDto {

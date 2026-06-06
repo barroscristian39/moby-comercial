@@ -1,6 +1,7 @@
 jest.mock('docxtemplater', () => jest.fn())
 jest.mock('pizzip', () => jest.fn())
 
+import { createMinimalDocxBuffer } from './docx-test-helpers'
 import { DocxTemplateService } from './docx-template.service'
 
 const Docxtemplater = require('docxtemplater')
@@ -24,7 +25,11 @@ describe('DocxTemplateService', () => {
       ),
     }))
 
-    const variables = service.extractVariables(Buffer.from('template'))
+    const variables = service.extractVariables(
+      createMinimalDocxBuffer({
+        documentXml: '<w:document><w:body><w:t>{{FUNÇÃO}}</w:t><w:t>{{NOME}}</w:t></w:body></w:document>',
+      }),
+    )
 
     expect(variables).toEqual(['FUNÇÃO', 'NOME'])
   })
@@ -43,7 +48,7 @@ describe('DocxTemplateService', () => {
       }
     })
 
-    const output = service.render(Buffer.from('template'), { nome: 'João Silva' })
+    const output = service.render(createMinimalDocxBuffer(), { nome: 'João Silva' })
 
     expect(render).toHaveBeenCalledWith({ nome: 'João Silva' })
     expect(generate).toHaveBeenCalledWith({

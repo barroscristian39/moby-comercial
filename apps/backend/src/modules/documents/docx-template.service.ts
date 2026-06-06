@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { assertSafeDocxArchive, UnsafeDocxArchiveError } from './docx-archive-safety'
 
 const Docxtemplater = require('docxtemplater')
 const PizZip = require('pizzip')
@@ -7,6 +8,7 @@ const PizZip = require('pizzip')
 export class DocxTemplateService {
   extractVariables(templateBuffer: Buffer): string[] {
     try {
+      assertSafeDocxArchive(templateBuffer)
       const zip = new PizZip(templateBuffer)
       const variables = new Set<string>()
       const relevantParts = Object.keys(zip.files).filter((name) =>
@@ -25,7 +27,10 @@ export class DocxTemplateService {
       }
 
       return Array.from(variables).sort((a, b) => a.localeCompare(b))
-    } catch {
+    } catch (error) {
+      if (error instanceof UnsafeDocxArchiveError) {
+        throw this.invalidDocxException(error.message)
+      }
       throw new BadRequestException({
         error: {
           code: 'DOCX_TEMPLATE_INVALID',
@@ -38,6 +43,7 @@ export class DocxTemplateService {
 
   render(templateBuffer: Buffer, data: Record<string, string>): Buffer {
     try {
+      assertSafeDocxArchive(templateBuffer)
       const zip = new PizZip(templateBuffer)
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
@@ -54,6 +60,10 @@ export class DocxTemplateService {
         compression: 'DEFLATE',
       })
     } catch (error: any) {
+      if (error instanceof UnsafeDocxArchiveError) {
+        throw this.invalidDocxException(error.message)
+      }
+
       throw new BadRequestException({
         error: {
           code: 'DOCX_TEMPLATE_RENDER_FAILED',
@@ -79,5 +89,15 @@ export class DocxTemplateService {
       return `Falha ao preencher template DOCX: ${explanation}`
     }
     return 'Falha ao preencher template DOCX. Verifique as variáveis {{ }} do arquivo.'
+  }
+
+  private invalidDocxException(message: string) {
+    return new BadRequestException({
+      error: {
+        code: 'DOCX_TEMPLATE_INVALID',
+        message,
+        statusCode: 400,
+      },
+    })
   }
 }

@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common'
+import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common'
 import { Role } from '@moby/shared'
 import { PasswordService } from '../../common/security/password.service'
 import { PrismaService } from '../../database/prisma.service'
@@ -16,18 +16,22 @@ export class SetupService {
   ) {}
 
   async getStatus(): Promise<{ data: BootstrapStatusEntity }> {
-    const totalUsers = await this.prismaService.withTenant(null, 'BOOTSTRAP_SERVICE', () =>
-      this.setupRepository.countUsers(),
-    )
-
     return {
-      data: {
-        requiresBootstrap: totalUsers === 0,
-      },
+      data: await this.resolveStatus(),
     }
   }
 
   async bootstrap(dto: BootstrapSetupDto): Promise<{ data: BootstrapAdminEntity }> {
+    const status = await this.resolveStatus()
+
+    if (!status.requiresBootstrap) {
+      throw this.bootstrapAlreadyCompletedException()
+    }
+
+    if (!status.bootstrapEnabled) {
+      throw this.bootstrapDisabledException()
+    }
+
     try {
       const passwordHash = await this.passwordService.hash(dto.password)
       const admin = await this.prismaService.withTenant(null, 'BOOTSTRAP_SERVICE', () =>
@@ -54,12 +58,43 @@ export class SetupService {
     }
   }
 
+  private async resolveStatus(): Promise<BootstrapStatusEntity> {
+    const totalUsers = await this.prismaService.withTenant(null, 'BOOTSTRAP_SERVICE', () =>
+      this.setupRepository.countUsers(),
+    )
+    const requiresBootstrap = totalUsers === 0
+
+    return {
+      requiresBootstrap,
+      bootstrapEnabled: requiresBootstrap && this.isBootstrapEnabled(),
+    }
+  }
+
+  private isBootstrapEnabled() {
+    const rawValue = process.env.ALLOW_BOOTSTRAP?.trim().toLowerCase()
+
+    if (rawValue === 'true') return true
+    if (rawValue === 'false') return false
+
+    return process.env.NODE_ENV !== 'production'
+  }
+
   private bootstrapAlreadyCompletedException() {
     return new ConflictException({
       error: {
         code: 'BOOTSTRAP_ALREADY_COMPLETED',
         message: 'O primeiro acesso já foi configurado para este ambiente.',
         statusCode: 409,
+      },
+    })
+  }
+
+  private bootstrapDisabledException() {
+    return new ForbiddenException({
+      error: {
+        code: 'BOOTSTRAP_DISABLED',
+        message: 'O primeiro acesso público está desabilitado para este ambiente.',
+        statusCode: 403,
       },
     })
   }

@@ -144,7 +144,7 @@ export function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2">
+      <nav className="scrollbar-hidden flex-1 overflow-y-auto py-3 pl-2 pr-1.5">
         {navGroups.map((group) => (
           <div key={group.label} className="mb-4">
             <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">

@@ -126,13 +126,21 @@ export function LoginForm() {
   }, [searchParams])
 
   useEffect(() => {
-    if (!isCheckingSetup && setupStatus?.requiresBootstrap) {
+    if (isCheckingSetup || !setupStatus?.requiresBootstrap) return
+
+    if (setupStatus.bootstrapEnabled) {
       setFeedback({
         type: 'info',
         message: 'Este ambiente ainda não possui usuários. Redirecionando para o primeiro acesso...',
       })
       router.replace('/primeiro-acesso')
+      return
     }
+
+    setFeedback({
+      type: 'auth',
+      message: 'Este ambiente ainda não foi inicializado e o primeiro acesso público está desabilitado.',
+    })
   }, [isCheckingSetup, router, setupStatus])
 
   const codeValue = watch('code') ?? ''
@@ -279,12 +287,20 @@ export function LoginForm() {
   }
 
   async function onSubmit(data: LoginDto) {
-    if (setupStatus?.requiresBootstrap) {
+    if (setupStatus?.requiresBootstrap && setupStatus.bootstrapEnabled) {
       setFeedback({
         type: 'info',
         message: 'Crie primeiro o administrador inicial para liberar o login neste ambiente.',
       })
       router.replace('/primeiro-acesso')
+      return
+    }
+
+    if (setupStatus?.requiresBootstrap && !setupStatus.bootstrapEnabled) {
+      setFeedback({
+        type: 'auth',
+        message: 'Este ambiente ainda não foi inicializado e o primeiro acesso público está desabilitado.',
+      })
       return
     }
 

@@ -1,9 +1,10 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common'
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common'
 import { execFile } from 'child_process'
 import * as fs from 'fs/promises'
 import * as os from 'os'
 import * as path from 'path'
 import { promisify } from 'util'
+import { assertSafeDocxArchive, UnsafeDocxArchiveError } from './docx-archive-safety'
 
 export type DocumentDownloadFormat = 'pdf' | 'docx'
 
@@ -20,6 +21,8 @@ export class DocumentExportService {
     filenameBase: string
     format: DocumentDownloadFormat
   }): Promise<{ buffer: Buffer; filename: string; contentType: string }> {
+    this.assertSafeSourceDocx(params.sourceBuffer)
+
     if (params.format === 'docx') {
       return {
         buffer: params.sourceBuffer,
@@ -164,6 +167,30 @@ export class DocumentExportService {
           code: 'PDF_EXPORT_UNAVAILABLE',
           message: 'A exportação em PDF não está disponível neste ambiente no momento.',
           statusCode: 503,
+        },
+      })
+    }
+  }
+
+  private assertSafeSourceDocx(sourceBuffer: Buffer) {
+    try {
+      assertSafeDocxArchive(sourceBuffer)
+    } catch (error) {
+      if (error instanceof UnsafeDocxArchiveError) {
+        throw new BadRequestException({
+          error: {
+            code: 'INVALID_DOCX_CONTENT',
+            message: error.message,
+            statusCode: 400,
+          },
+        })
+      }
+
+      throw new BadRequestException({
+        error: {
+          code: 'INVALID_DOCX_CONTENT',
+          message: 'Arquivo DOCX corrompido ou inválido',
+          statusCode: 400,
         },
       })
     }

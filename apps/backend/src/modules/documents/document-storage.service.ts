@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import { assertSafeDocxArchive, UnsafeDocxArchiveError } from './docx-archive-safety'
 
 const PizZip = require('pizzip')
 
@@ -36,11 +37,15 @@ export class DocumentStorageService {
     }
 
     try {
+      assertSafeDocxArchive(buffer)
       const zip = new PizZip(buffer)
       if (!zip.file('[Content_Types].xml') || !zip.file('word/document.xml')) {
         this.invalidUpload('Arquivo DOCX sem estrutura esperada')
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof UnsafeDocxArchiveError) {
+        this.invalidUpload(error.message)
+      }
       this.invalidUpload('Arquivo DOCX corrompido ou inválido')
     }
   }

@@ -38,6 +38,7 @@ export default function FirstAccessPage() {
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const { data: setupStatus, isLoading: isCheckingStatus } = useSetupStatus()
   const bootstrapSetup = useBootstrapSetup()
+  const bootstrapLocked = !!setupStatus?.requiresBootstrap && !setupStatus?.bootstrapEnabled
 
   const {
     register,
@@ -62,6 +63,14 @@ export default function FirstAccessPage() {
   const isBusy = isCheckingStatus || isSubmitting || bootstrapSetup.isPending || feedback?.type === 'loading'
 
   async function onSubmit(values: FirstAccessFormData) {
+    if (bootstrapLocked) {
+      setFeedback({
+        type: 'error',
+        message: 'O primeiro acesso público está desabilitado para este ambiente.',
+      })
+      return
+    }
+
     setFeedback({ type: 'loading', message: 'Criando o acesso inicial da plataforma...' })
 
     try {
@@ -147,6 +156,24 @@ export default function FirstAccessPage() {
                 O ambiente e a primeira empresa não serão criados aqui. Eles continuam 100% sob sua criação manual dentro do MOBY.
               </div>
 
+              {bootstrapLocked ? (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+                    O banco ainda está vazio, mas o primeiro acesso público foi bloqueado neste ambiente. Habilite
+                    temporariamente o bootstrap apenas durante a implantação inicial ou conclua a criação do
+                    administrador por um canal administrativo controlado.
+                  </div>
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant="outline"
+                    className="h-11 w-full rounded-lg text-base font-semibold"
+                    onClick={() => router.replace('/login')}
+                  >
+                    Voltar ao login
+                  </Button>
+                </div>
+              ) : (
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
                 <div className="login-field-shell space-y-1.5 rounded-lg border border-border/70 bg-background/75 p-3">
                   <Label htmlFor="name" className="text-sm font-medium">Nome do administrador</Label>
@@ -252,6 +279,7 @@ export default function FirstAccessPage() {
                   </span>
                 </Button>
               </form>
+              )}
             </div>
           </section>
         </div>

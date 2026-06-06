@@ -22,6 +22,10 @@ services:
         value: production
       - key: FRONTEND_URL
         sync: false
+      - key: PASSWORD_RESET_URL_BASE
+        sync: false
+      - key: ALLOW_BOOTSTRAP
+        value: 'false'
       - key: COOKIE_SAME_SITE
         value: none
       - key: COOKIE_SECURE
@@ -40,6 +44,14 @@ services:
         generateValue: true
       - key: REFRESH_TOKEN_EXPIRES_IN
         value: 7d
+      - key: MAIL_PROVIDER
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_TEST_RECIPIENT
+        sync: false
       - key: REDIS_URL
         sync: false
       - key: R2_ACCOUNT_ID

@@ -129,6 +129,15 @@
 }
 
 @layer utilities {
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
   .login-hero-shell {
     background:
       radial-gradient(circle at 16% 22%, rgb(96 165 250 / 0.18), transparent 30%),
