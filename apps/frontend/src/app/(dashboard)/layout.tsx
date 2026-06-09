@@ -11,9 +11,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Sidebar />
         </div>
         {/* relative necessário para o overlay do NavigationProgress se posicionar corretamente */}
-        <div className="relative flex flex-1 flex-col overflow-hidden">
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-background">
           <NavigationProgress />
-          <main className="flex-1 overflow-y-auto pb-24 md:pb-0">
+          <main className="flex-1 overflow-y-auto bg-background pb-24 md:pb-0">
             {children}
           </main>
           <MobileDashboardNav />

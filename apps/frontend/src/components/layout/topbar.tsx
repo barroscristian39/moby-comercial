@@ -20,7 +20,7 @@ export function Topbar({ title, subtitle }: TopbarProps) {
   const isAdminSystem = user?.role === 'SUPER_ADMIN'
 
   return (
-    <header className="flex h-14 items-center gap-4 border-b border-border bg-card px-6">
+    <header className="flex h-14 items-center gap-4 border-b border-border/70 bg-background px-6">
       <div className="flex-1">
         <h1 className="text-sm font-semibold text-foreground">{title}</h1>
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}

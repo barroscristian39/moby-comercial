@@ -31,7 +31,8 @@
       "Bash(powershell -Command 'Get-Process node | Select-Object Id, @{N='\\\\''Cmd'\\\\'';E={\\($_.Path\\)}} | Format-Table -AutoSize')",
       "Bash(echo \"Backend PID: $!\")",
       "Bash(echo \"Frontend PID: $!\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\barro\\\\OneDrive\\\\Documentos\\\\Claude\\\\Projects\\\\MOBY 2.0\\\\moby\"; $out = pnpm --filter backend exec tsc --noEmit --skipLibCheck 2>&1; $out | Where-Object { $_ -match \"companies\" }; $out | Where-Object { $_ -match \"error\" } | Measure-Object | Select-Object -ExpandProperty Count | ForEach-Object { Write-Host \"$_ erros totais no backend\" })"
     ]
   }
 }
