@@ -36,6 +36,15 @@ const RISK_LEVEL_VARIANTS: Record<RiskLevel, 'muted' | 'secondary' | 'warning' |
   [RiskLevel.CRITICAL]: 'destructive',
 }
 
+function extractMeasures(controlMeasures: string | null) {
+  if (!controlMeasures) return []
+
+  return controlMeasures
+    .split(/\r?\n|;/)
+    .map((measure) => measure.replace(/^[-*•]\s*/, '').trim())
+    .filter((measure) => measure.length > 0)
+}
+
 function MetricCard({
   label,
   value,
@@ -70,7 +79,7 @@ export default function ControlesPage() {
     page: 1,
     perPage: 200,
     companyId: activeCompany?.id ?? undefined,
-  })
+  }, !!activeCompany)
 
   const risks = data?.data ?? []
   const risksWithMeasures = useMemo(
@@ -80,6 +89,23 @@ export default function ControlesPage() {
   const risksWithoutMeasures = useMemo(
     () => risks.filter((risk) => !risk.controlMeasures || risk.controlMeasures.trim().length === 0),
     [risks],
+  )
+  const controls = useMemo(
+    () =>
+      risksWithMeasures.flatMap((risk) =>
+        extractMeasures(risk.controlMeasures).map((measure, index) => ({
+          id: `${risk.id}-${index}`,
+          riskId: risk.id,
+          riskName: risk.name,
+          riskType: risk.type,
+          riskLevel: risk.level,
+          unitName: risk.unitName,
+          jobFunctionName: risk.jobFunctionName,
+          isActive: risk.isActive,
+          measure,
+        })),
+      ),
+    [risksWithMeasures],
   )
 
   return (
@@ -97,7 +123,7 @@ export default function ControlesPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <MetricCard label="Riscos com medidas" value={risksWithMeasures.length} variant="success" />
           <MetricCard label="Riscos sem medidas" value={risksWithoutMeasures.length} variant="warning" />
-          <MetricCard label="Total de riscos" value={risks.length} variant="secondary" />
+          <MetricCard label="Medidas cadastradas" value={controls.length} variant="secondary" />
         </div>
 
         {isLoading && (
@@ -117,57 +143,55 @@ export default function ControlesPage() {
           </Card>
         )}
 
-        {!isLoading && !isError && risksWithMeasures.length === 0 && (
+        {!isLoading && !isError && controls.length === 0 && (
           <EmptyModuleState
             icon={Shield}
             title="Nenhuma medida de controle encontrada"
-            description="Os controles exibidos aqui são lidos diretamente dos riscos cadastrados. Cadastre ou complemente as medidas no inventário GRO para visualizá-las nesta área."
+            description="Os controles exibidos aqui são puxados diretamente do campo de medidas de controle cadastrado em cada risco. Cadastre ou complemente essas medidas no inventário de riscos para visualizá-las nesta área."
             actionLabel="Ir para riscos"
             onAction={() => router.push('/dashboard/gro')}
           />
         )}
 
-        {!isLoading && !isError && risksWithMeasures.length > 0 && (
+        {!isLoading && !isError && controls.length > 0 && (
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risco</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Medida de controle</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risco de origem</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tipo / nível</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unidade / função</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Medidas</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ação</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {risksWithMeasures.map((risk) => (
-                      <tr key={risk.id} className="border-b border-border align-top last:border-0">
+                    {controls.map((control) => (
+                      <tr key={control.id} className="border-b border-border align-top last:border-0">
+                        <td className="px-4 py-4">
+                          <p className="text-sm leading-relaxed text-foreground">{control.measure}</p>
+                        </td>
                         <td className="px-4 py-4">
                           <div className="space-y-1">
-                            <p className="font-medium text-foreground">{risk.name}</p>
-                            <Badge variant={risk.isActive ? 'success' : 'secondary'}>
-                              {risk.isActive ? 'Ativo' : 'Inativo'}
+                            <p className="font-medium text-foreground">{control.riskName}</p>
+                            <Badge variant={control.isActive ? 'success' : 'secondary'}>
+                              {control.isActive ? 'Ativo' : 'Inativo'}
                             </Badge>
                           </div>
                         </td>
                         <td className="px-4 py-4">
                           <div className="space-y-2">
-                            <p className="text-muted-foreground">{RISK_TYPE_LABELS[risk.type]}</p>
-                            <Badge variant={RISK_LEVEL_VARIANTS[risk.level]}>
-                              {RISK_LEVEL_LABELS[risk.level]}
+                            <p className="text-muted-foreground">{RISK_TYPE_LABELS[control.riskType]}</p>
+                            <Badge variant={RISK_LEVEL_VARIANTS[control.riskLevel]}>
+                              {RISK_LEVEL_LABELS[control.riskLevel]}
                             </Badge>
                           </div>
                         </td>
                         <td className="px-4 py-4 text-muted-foreground">
-                          <p>{risk.unitName}</p>
-                          <p className="text-xs opacity-75">{risk.jobFunctionName ?? 'Todas as funções'}</p>
-                        </td>
-                        <td className="px-4 py-4">
-                          <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
-                            {risk.controlMeasures}
-                          </p>
+                          <p>{control.unitName}</p>
+                          <p className="text-xs opacity-75">{control.jobFunctionName ?? 'Todas as funções'}</p>
                         </td>
                         <td className="px-4 py-4 text-right">
                           <Button variant="outline" size="sm" onClick={() => router.push('/dashboard/gro')}>

@@ -38,6 +38,7 @@ type NavItem = {
   icon: LucideIcon
   permission?: string
   roles?: string[]
+  activePaths?: string[]
 }
 
 type NavGroup = {
@@ -65,7 +66,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'GRO',
     items: [
-      { href: '/dashboard/riscos',     label: 'Riscos',      icon: ShieldAlert, permission: 'risks.read' },
+      { href: '/dashboard/riscos',     label: 'Riscos',      icon: ShieldAlert, permission: 'risks.read', activePaths: ['/dashboard/gro'] },
       { href: '/dashboard/controles',  label: 'Controles',   icon: Shield, permission: 'risks.read' },
     ],
   },
@@ -154,12 +155,7 @@ export function Sidebar() {
               .filter((item) => canViewItem(item, user?.role, permissions, !!accessContext))
               .map((item) => {
               const Icon = item.icon
-              // Usa match exato para /dashboard para evitar que ele fique ativo
-              // em todas as sub-rotas (ex: /dashboard/empresas começa com /dashboard/)
-              const active =
-                item.href === '/dashboard'
-                  ? pathname === '/dashboard'
-                  : pathname === item.href || pathname.startsWith(item.href + '/')
+              const active = isNavItemActive(pathname, item)
               return (
                 <Link
                   key={item.href}
@@ -226,4 +222,17 @@ function canViewItem(
   if (!item.permission) return true
   if (!hasAccessContext) return false
   return permissions.has(item.permission)
+}
+
+function isNavItemActive(pathname: string, item: NavItem) {
+  const activePaths = item.activePaths ?? []
+  const pathsToMatch = [item.href, ...activePaths]
+
+  return pathsToMatch.some((path) => {
+    if (path === '/dashboard') {
+      return pathname === '/dashboard'
+    }
+
+    return pathname === path || pathname.startsWith(`${path}/`)
+  })
 }
