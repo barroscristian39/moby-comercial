@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, ArrowRight, Loader2, Shield } from 'lucide-react'
 import { RiskLevel, RiskType } from '@moby/shared'
@@ -70,16 +70,28 @@ function MetricCard({
 export default function ControlesPage() {
   const router = useRouter()
   const { activeCompany, hydrate } = useCompanyStore()
+  const [hasHydratedCompany, setHasHydratedCompany] = useState(false)
 
   useEffect(() => {
     hydrate()
+    setHasHydratedCompany(true)
   }, [hydrate])
 
-  const { data, isLoading, isError } = useRisks({
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+  } = useRisks({
     page: 1,
     perPage: 200,
     companyId: activeCompany?.id ?? undefined,
-  }, !!activeCompany)
+  }, hasHydratedCompany)
+
+  useEffect(() => {
+    if (!hasHydratedCompany) return
+    void refetch()
+  }, [activeCompany?.id, hasHydratedCompany, refetch])
 
   const risks = data?.data ?? []
   const risksWithMeasures = useMemo(
