@@ -96,7 +96,7 @@ const RISK_SEVERITY_LABELS: Record<RiskSeverity, string> = {
 
 export default function GRODashboardPage() {
   const router = useRouter()
-  const { activeCompany, hydrate } = useCompanyStore()
+  const { activeCompany, hydrate, clearActiveCompany } = useCompanyStore()
   const accessContext = useAuthStore((state) => state.accessContext)
   const canManageRisks = (accessContext?.available_permissions ?? []).includes('risks.write')
 
@@ -208,7 +208,7 @@ export default function GRODashboardPage() {
   }, [risks])
 
   function sairDaEmpresa() {
-    useCompanyStore.setState({ activeCompany: null })
+    clearActiveCompany()
     router.push('/dashboard/empresas')
   }
 

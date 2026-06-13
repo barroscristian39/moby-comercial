@@ -14,6 +14,14 @@ export function useCompanies(
   })
 }
 
+export function useCompany(id: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['companies', id],
+    queryFn: () => companiesApi.findOne(id!),
+    enabled: enabled && !!id,
+  })
+}
+
 export function useCreateCompany() {
   const qc = useQueryClient()
   return useMutation({

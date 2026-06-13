@@ -61,6 +61,7 @@ export default function EmpresasPage() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
   const accessContext = useAuthStore((state) => state.accessContext)
+  const setActiveCompany = useCompanyStore((state) => state.setActiveCompany)
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const canManageCompanies = (accessContext?.available_permissions ?? []).includes('companies.write')
   const [busca, setBusca] = useState('')
@@ -161,14 +162,16 @@ export default function EmpresasPage() {
     }
   }
 
+  function abrirPerfilEmpresa(companyId: string) {
+    router.push(`/dashboard/empresas/${companyId}`)
+  }
+
   function selecionarEmpresa(empresa: Company) {
-    useCompanyStore.setState({
-      activeCompany: {
-        id: empresa.id,
-        name: empresa.tradeName ?? empresa.name,
-        tradeName: empresa.tradeName,
-        cnpj: empresa.cnpj,
-      },
+    setActiveCompany({
+      id: empresa.id,
+      name: empresa.name,
+      tradeName: empresa.tradeName,
+      cnpj: empresa.cnpj,
     })
     router.push('/dashboard/gro')
   }
@@ -242,7 +245,8 @@ export default function EmpresasPage() {
           {empresas.map((empresa) => (
             <div
               key={empresa.id}
-              className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_12px_rgba(15,23,42,0.07)] overflow-hidden"
+              className="cursor-pointer overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.07)] transition-shadow hover:shadow-[0_6px_20px_rgba(15,23,42,0.12)]"
+              onClick={() => abrirPerfilEmpresa(empresa.id)}
             >
               {/* Corpo do card */}
               <div className="flex items-start gap-3 p-4">
@@ -275,7 +279,10 @@ export default function EmpresasPage() {
                     size="sm"
                     variant="outline"
                     className="flex-1 h-8 text-xs gap-1.5 rounded-xl"
-                    onClick={() => selecionarEmpresa(empresa)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      selecionarEmpresa(empresa)
+                    }}
                   >
                     <LogIn className="h-3.5 w-3.5" />
                     Acessar
@@ -287,7 +294,10 @@ export default function EmpresasPage() {
                       size="sm"
                       variant="outline"
                       className="h-8 w-8 p-0 rounded-xl"
-                      onClick={() => abrirModalEditar(empresa)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        abrirModalEditar(empresa)
+                      }}
                       title="Editar"
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -296,7 +306,10 @@ export default function EmpresasPage() {
                       size="sm"
                       variant="outline"
                       className="h-8 w-8 p-0 rounded-xl"
-                      onClick={() => alternarStatus(empresa)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        alternarStatus(empresa)
+                      }}
                       title={empresa.isActive ? 'Desativar' : 'Ativar'}
                     >
                       <Power className={`h-3.5 w-3.5 ${empresa.isActive ? 'text-destructive' : 'text-success'}`} />
@@ -413,7 +426,7 @@ export default function EmpresasPage() {
                     <tr
                       key={empresa.id}
                       className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                      onClick={() => empresa.isActive && selecionarEmpresa(empresa)}
+                      onClick={() => abrirPerfilEmpresa(empresa.id)}
                     >
                       <td className="px-4 py-3">
                         <p className="font-medium text-foreground">{empresa.tradeName ?? empresa.name}</p>

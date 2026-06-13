@@ -15,9 +15,14 @@ export interface Company {
   addressCity: string | null
   addressState: string | null
   addressZipCode: string | null
+  email: string | null
+  phone: string | null
+  responsibleName: string | null
+  logoUrl: string | null
   isActive: boolean
   unitCount: number
   createdAt: string
+  updatedAt: string
 }
 
 export interface PaginatedResponse<T> {
@@ -52,6 +57,11 @@ export const companiesApi = {
   findAll: async (params?: { page?: number; perPage?: number; search?: string; tenantId?: string }) => {
     const { data } = await api.get('/companies', { params })
     return data as PaginatedResponse<Company>
+  },
+
+  findOne: async (id: string) => {
+    const { data } = await api.get(`/companies/${id}`)
+    return data.data as Company
   },
 
   create: async (dto: CreateCompanyDto) => {
