@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog'
 
 import { useCompanies } from '@/hooks/use-companies'
+import { useUnits } from '@/hooks/use-units'
 import { useEmployees } from '@/hooks/use-employees'
 import { useEpiItems, useCreateEpiItem, useUpdateEpiItem } from '@/hooks/use-epi-items'
 import { useEpiDeliveries, useCreateEpiDelivery } from '@/hooks/use-epi-deliveries'
@@ -83,6 +84,8 @@ export default function EpiPage() {
   const [modalEntregaAberto, setModalEntregaAberto] = useState(false)
   const [editando, setEditando] = useState<EpiItem | null>(null)
   const [erroEntrega, setErroEntrega] = useState<string | null>(null)
+  const [unidadeEntregaId, setUnidadeEntregaId] = useState('')
+  const [buscaColaboradorEntrega, setBuscaColaboradorEntrega] = useState('')
 
   const { data: companiesData } = useCompanies({ page: 1, perPage: 100 })
   const { data: epiData, isLoading, isError } = useEpiItems({ page: 1, perPage: 100 })
@@ -160,11 +163,25 @@ export default function EpiPage() {
   })
 
   const empresaEntregaId = formEntrega.watch('empresaId')
-  const { data: employeesData } = useEmployees({
-    page: 1, perPage: 200,
+  const { data: unidadesEntregaData } = useUnits({
+    page: 1,
+    perPage: 100,
     companyId: empresaEntregaId || undefined,
   })
+  const { data: employeesData } = useEmployees({
+    page: 1,
+    perPage: 200,
+    companyId: empresaEntregaId || undefined,
+    unitId: unidadeEntregaId || undefined,
+    search: buscaColaboradorEntrega || undefined,
+  })
   const employees = employeesData?.data ?? []
+  const unidadesEntrega = unidadesEntregaData?.data ?? []
+  const colaboradoresEntrega = employees.filter((employee) => {
+    const termo = buscaColaboradorEntrega.trim().toLowerCase()
+    if (!termo) return true
+    return employee.name.toLowerCase().includes(termo)
+  })
   const episEmpresa = allEpis.filter((e) => e.isActive && e.companyId === empresaEntregaId)
 
   // EPI — handlers
@@ -222,6 +239,8 @@ export default function EpiPage() {
   // Entrega — handlers
   function abrirModalEntrega() {
     setErroEntrega(null)
+    setUnidadeEntregaId('')
+    setBuscaColaboradorEntrega('')
     formEntrega.reset({
       empresaId: filtroEmpresaId, employeeId: '', epiItemId: '',
       quantity: 1,
@@ -579,6 +598,8 @@ export default function EpiPage() {
                   formEntrega.setValue('empresaId', e.target.value)
                   formEntrega.setValue('employeeId', '')
                   formEntrega.setValue('epiItemId', '')
+                  setUnidadeEntregaId('')
+                  setBuscaColaboradorEntrega('')
                 }}>
                 <option value="">Selecione a empresa</option>
                 {companies.map((c) => <option key={c.id} value={c.id}>{c.tradeName ?? c.name}</option>)}
@@ -587,10 +608,56 @@ export default function EpiPage() {
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="unidadeEntrega">Unidade</Label>
+              <select
+                id="unidadeEntrega"
+                className={selectClass}
+                disabled={!empresaEntregaId}
+                value={unidadeEntregaId}
+                onChange={(e) => {
+                  setUnidadeEntregaId(e.target.value)
+                  formEntrega.setValue('employeeId', '')
+                }}
+              >
+                <option value="">Todas as unidades</option>
+                {unidadesEntrega.map((unidade) => (
+                  <option key={unidade.id} value={unidade.id}>{unidade.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="buscaColaboradorEntrega">Pesquisar colaborador</Label>
+              <Input
+                id="buscaColaboradorEntrega"
+                value={buscaColaboradorEntrega}
+                disabled={!empresaEntregaId}
+                placeholder="Digite as primeiras letras ou o nome completo"
+                onChange={(e) => {
+                  setBuscaColaboradorEntrega(e.target.value)
+                  formEntrega.setValue('employeeId', '')
+                }}
+              />
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="employeeEntrega">Colaborador *</Label>
-              <select id="employeeEntrega" className={selectClass} disabled={!empresaEntregaId} {...formEntrega.register('employeeId')}>
-                <option value="">Selecione o colaborador</option>
-                {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              <select
+                id="employeeEntrega"
+                className={selectClass}
+                disabled={!empresaEntregaId || colaboradoresEntrega.length === 0}
+                {...formEntrega.register('employeeId')}
+              >
+                <option value="">
+                  {empresaEntregaId
+                    ? colaboradoresEntrega.length === 0
+                      ? 'Nenhum colaborador encontrado'
+                      : 'Selecione o colaborador'
+                    : 'Selecione a empresa primeiro'}
+                </option>
+                {colaboradoresEntrega.map((employee) => (
+                  <option key={employee.id} value={employee.id}>{employee.name}</option>
+                ))}
               </select>
               {formEntrega.formState.errors.employeeId && <p className="text-xs text-destructive">{formEntrega.formState.errors.employeeId.message}</p>}
             </div>
