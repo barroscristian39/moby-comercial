@@ -268,3 +268,26 @@ export enum ExamType {
   RETURN_TO_WORK = 'RETURN_TO_WORK',
   DISMISSAL = 'DISMISSAL',
 }
+
+export enum OccupationalExamType {
+  ADMISSIONAL = 'ADMISSIONAL',
+  PERIODIC = 'PERIODIC',
+  RETURN_TO_WORK = 'RETURN_TO_WORK',
+  ROLE_CHANGE = 'ROLE_CHANGE',
+  DISMISSAL = 'DISMISSAL',
+  COMPLEMENTARY = 'COMPLEMENTARY',
+}
+
+export enum OccupationalExamResult {
+  FIT = 'FIT',
+  UNFIT = 'UNFIT',
+  FIT_WITH_RESTRICTIONS = 'FIT_WITH_RESTRICTIONS',
+  PENDING = 'PENDING',
+}
+
+export enum TrainingStatus {
+  SCHEDULED = 'SCHEDULED',
+  COMPLETED = 'COMPLETED',
+  EXPIRED = 'EXPIRED',
+  CANCELED = 'CANCELED',
+}

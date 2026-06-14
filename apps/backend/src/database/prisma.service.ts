@@ -23,9 +23,12 @@ type PrismaModelDelegateName =
   | 'userCompanyAccess'
   | 'userUnitAccess'
   | 'refreshToken'
+  | 'loginVerificationCode'
   | 'passwordResetToken'
   | 'epiItem'
   | 'epiDelivery'
+  | 'occupationalExam'
+  | 'training'
   | 'auditLog'
 
 type PrismaRequestContext = {
@@ -58,9 +61,12 @@ const MODEL_DELEGATES: PrismaModelDelegateName[] = [
   'userCompanyAccess',
   'userUnitAccess',
   'refreshToken',
+  'loginVerificationCode',
   'passwordResetToken',
   'epiItem',
   'epiDelivery',
+  'occupationalExam',
+  'training',
   'auditLog',
 ]
 

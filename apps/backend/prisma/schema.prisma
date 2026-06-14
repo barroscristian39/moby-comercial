@@ -73,6 +73,29 @@ enum EpiCondition {
   USED
 }
 
+enum OccupationalExamType {
+  ADMISSIONAL
+  PERIODIC
+  RETURN_TO_WORK
+  ROLE_CHANGE
+  DISMISSAL
+  COMPLEMENTARY
+}
+
+enum OccupationalExamResult {
+  FIT
+  UNFIT
+  FIT_WITH_RESTRICTIONS
+  PENDING
+}
+
+enum TrainingStatus {
+  SCHEDULED
+  COMPLETED
+  EXPIRED
+  CANCELED
+}
+
 enum FunctionStatus {
   ACTIVE
   INACTIVE
@@ -247,6 +270,8 @@ model Tenant {
   employees          Employee[]
   epiItems           EpiItem[]
   epiDeliveries      EpiDelivery[]
+  occupationalExams  OccupationalExam[]
+  trainings          Training[]
   users              User[]
   notifications      Notification[]
   auditLogs          AuditLog[]
@@ -294,6 +319,8 @@ model Company {
   employees     Employee[]
   epiItems      EpiItem[]
   epiDeliveries EpiDelivery[]
+  occupationalExams OccupationalExam[]
+  trainings     Training[]
   notifications Notification[]
 
   @@unique([tenantId, cnpj])
@@ -334,6 +361,8 @@ model Unit {
   userAccess         UserUnitAccess[]
   functionUnits      FunctionUnit[]
   generatedDocuments GeneratedDocument[]
+  occupationalExams  OccupationalExam[]
+  trainings          Training[]
 
   @@index([tenantId])
   @@index([tenantId, companyId])
@@ -390,6 +419,8 @@ model JobFunction {
   functionUnits      FunctionUnit[]
   risks              Risk[]
   accidents          Accident[]
+  occupationalExams  OccupationalExam[]
+  trainings          Training[]
   templates          FunctionTemplate[]
   generatedDocuments GeneratedDocument[]
 
@@ -446,6 +477,8 @@ model Employee {
   jobFunction        JobFunction         @relation(fields: [jobFunctionId], references: [id])
   accidents          Accident[]
   epiDeliveries      EpiDelivery[]
+  occupationalExams  OccupationalExam[]
+  trainings          Training[]
   generatedDocuments GeneratedDocument[]
   accidentGeneratedDocuments AccidentGeneratedDocument[]
 
@@ -939,6 +972,79 @@ model EpiDelivery {
   @@index([employeeId])
   @@index([epiItemId])
   @@map("epi_deliveries")
+}
+
+model OccupationalExam {
+  id            String                 @id @default(uuid())
+  tenantId      String                 @map("tenant_id")
+  companyId     String                 @map("company_id")
+  unitId        String                 @map("unit_id")
+  employeeId    String                 @map("employee_id")
+  jobFunctionId String?                @map("job_function_id")
+  examType      OccupationalExamType   @map("exam_type")
+  name          String
+  provider      String?
+  performedAt   DateTime?              @map("performed_at") @db.Date
+  dueDate       DateTime               @map("due_date") @db.Date
+  result        OccupationalExamResult @default(PENDING)
+  asoIssued     Boolean                @default(false) @map("aso_issued")
+  asoNumber     String?                @map("aso_number")
+  notes         String?
+  isActive      Boolean                @default(true) @map("is_active")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+  deletedAt     DateTime?              @map("deleted_at")
+  deletedBy     String?                @map("deleted_by")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  company     Company      @relation(fields: [companyId], references: [id])
+  unit        Unit         @relation(fields: [unitId], references: [id])
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+  jobFunction JobFunction? @relation(fields: [jobFunctionId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([unitId])
+  @@index([employeeId])
+  @@index([jobFunctionId])
+  @@index([dueDate, result, isActive])
+  @@map("occupational_exams")
+}
+
+model Training {
+  id            String         @id @default(uuid())
+  tenantId      String         @map("tenant_id")
+  companyId     String         @map("company_id")
+  unitId        String         @map("unit_id")
+  employeeId    String         @map("employee_id")
+  jobFunctionId String?        @map("job_function_id")
+  name          String
+  provider      String?
+  workloadHours Int?           @map("workload_hours")
+  completedAt   DateTime?      @map("completed_at") @db.Date
+  dueDate       DateTime        @map("due_date") @db.Date
+  certificateUrl String?       @map("certificate_url")
+  status        TrainingStatus @default(SCHEDULED)
+  notes         String?
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  deletedAt     DateTime?      @map("deleted_at")
+  deletedBy     String?        @map("deleted_by")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  company     Company      @relation(fields: [companyId], references: [id])
+  unit        Unit         @relation(fields: [unitId], references: [id])
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+  jobFunction JobFunction? @relation(fields: [jobFunctionId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([unitId])
+  @@index([employeeId])
+  @@index([jobFunctionId])
+  @@index([dueDate, status, isActive])
+  @@map("trainings")
 }
 
 model AuditLog {

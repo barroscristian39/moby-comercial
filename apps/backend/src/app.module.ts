@@ -30,6 +30,8 @@ import { GroModule } from './modules/gro/gro.module'
 import { DashboardModule } from './modules/dashboard/dashboard.module'
 import { EpiItemsModule } from './modules/epi-items/epi-items.module'
 import { EpiDeliveriesModule } from './modules/epi-deliveries/epi-deliveries.module'
+import { OccupationalExamsModule } from './modules/occupational-exams/occupational-exams.module'
+import { TrainingsModule } from './modules/trainings/trainings.module'
 import { AuditModule } from './modules/audit/audit.module'
 import { TenantsModule } from './modules/tenants/tenants.module'
 import { SetupModule } from './modules/setup/setup.module'
@@ -60,6 +62,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     DashboardModule,
     EpiItemsModule,
     EpiDeliveriesModule,
+    OccupationalExamsModule,
+    TrainingsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

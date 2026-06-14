@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { GeneratedDocumentStatus, Prisma, RiskLevel } from '@prisma/client'
+import { GeneratedDocumentStatus, OccupationalExamType, Prisma, RiskLevel } from '@prisma/client'
 import { PrismaService } from '../../database/prisma.service'
 
 type DashboardScope = {
@@ -40,10 +40,12 @@ export class DashboardRepository {
     const generatedDocumentWhere = this.buildGeneratedDocumentWhere(scope)
     const accidentGeneratedDocumentWhere = this.buildAccidentGeneratedDocumentWhere(scope)
     const epiWhere = this.buildEpiWhere(scope)
+    const occupationalExamWhere = this.buildOccupationalExamWhere(scope)
 
     const [
       activeUnits,
       employees,
+      supplementaryExams,
       accidentsWithLeave,
       accidentsWithoutLeave,
       generatedDocuments,
@@ -53,6 +55,12 @@ export class DashboardRepository {
     ] = await Promise.all([
       this.prisma.unit.count({ where: unitWhere }),
       this.prisma.employee.count({ where: employeeWhere }),
+      this.prisma.occupationalExam.count({
+        where: {
+          ...occupationalExamWhere,
+          examType: OccupationalExamType.COMPLEMENTARY,
+        },
+      }),
       this.prisma.accident.count({
         where: {
           ...accidentWhere,
@@ -84,6 +92,8 @@ export class DashboardRepository {
     return {
       activeUnits,
       employees,
+      supplementaryExams,
+      supplementaryExamsAvailable: true,
       reportsIssued: generatedDocuments + accidentGeneratedDocuments,
       accidentsWithLeave,
       accidentsWithoutLeave,
@@ -169,6 +179,16 @@ export class DashboardRepository {
       isActive: true,
       ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
       ...(companyIds !== undefined ? { companyId: { in: companyIds } } : {}),
+    }
+  }
+
+  private buildOccupationalExamWhere(scope: DashboardScope): Prisma.OccupationalExamWhereInput {
+    return {
+      deletedAt: null,
+      isActive: true,
+      ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
+      ...(scope.companyIds !== undefined ? { companyId: { in: scope.companyIds } } : {}),
+      ...(scope.unitIds !== undefined ? { unitId: { in: scope.unitIds } } : {}),
     }
   }
 }

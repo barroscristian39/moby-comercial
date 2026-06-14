@@ -122,6 +122,10 @@ ALTER TABLE "epi_items" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "epi_items" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "epi_deliveries" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "epi_deliveries" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "occupational_exams" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "occupational_exams" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "trainings" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "trainings" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "audit_logs" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "audit_logs" FORCE ROW LEVEL SECURITY;
 
@@ -158,6 +162,8 @@ DROP POLICY IF EXISTS password_reset_tokens_read_internal ON "password_reset_tok
 DROP POLICY IF EXISTS password_reset_tokens_tenant_isolation ON "password_reset_tokens";
 DROP POLICY IF EXISTS epi_items_tenant_isolation ON "epi_items";
 DROP POLICY IF EXISTS epi_deliveries_tenant_isolation ON "epi_deliveries";
+DROP POLICY IF EXISTS occupational_exams_tenant_isolation ON "occupational_exams";
+DROP POLICY IF EXISTS trainings_tenant_isolation ON "trainings";
 DROP POLICY IF EXISTS audit_logs_read_policy ON "audit_logs";
 DROP POLICY IF EXISTS audit_logs_write_policy ON "audit_logs";
 
@@ -576,6 +582,28 @@ CREATE POLICY epi_items_tenant_isolation ON "epi_items"
   );
 
 CREATE POLICY epi_deliveries_tenant_isolation ON "epi_deliveries"
+  FOR ALL TO moby_app
+  USING (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  )
+  WITH CHECK (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  );
+
+CREATE POLICY occupational_exams_tenant_isolation ON "occupational_exams"
+  FOR ALL TO moby_app
+  USING (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  )
+  WITH CHECK (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  );
+
+CREATE POLICY trainings_tenant_isolation ON "trainings"
   FOR ALL TO moby_app
   USING (
     public.moby_is_super_admin()
