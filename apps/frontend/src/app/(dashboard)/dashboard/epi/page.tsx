@@ -92,7 +92,7 @@ export default function EpiPage() {
   const { data: companiesData } = useCompanies({ page: 1, perPage: 100 })
   const { data: epiData, isLoading, isError } = useEpiItems({ page: 1, perPage: 100 })
   const { data: deliveriesData, isLoading: loadingDeliveries } = useEpiDeliveries({
-    page: 1, perPage: 200,
+    page: 1, perPage: 100,
     companyId: filtroEntregasEmpresaId || undefined,
     unitId: filtroEntregasUnidadeId || undefined,
   })
@@ -183,7 +183,7 @@ export default function EpiPage() {
   })
   const { data: employeesData } = useEmployees({
     page: 1,
-    perPage: 200,
+    perPage: 100,
     companyId: empresaEntregaId || undefined,
     unitId: unidadeEntregaId || undefined,
     search: buscaColaboradorEntrega || undefined,

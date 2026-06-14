@@ -54,11 +54,11 @@ export default function TreinamentosPage() {
 
   const { data: trainingsData, isLoading } = useTrainings({
     page: 1,
-    perPage: 200,
+    perPage: 100,
     search: search || undefined,
     status: status === 'all' ? undefined : status,
   })
-  const { data: employeesData } = useEmployees({ page: 1, perPage: 200, isActive: true })
+  const { data: employeesData } = useEmployees({ page: 1, perPage: 100, isActive: true })
   const createTraining = useCreateTraining()
   const updateTraining = useUpdateTraining()
 

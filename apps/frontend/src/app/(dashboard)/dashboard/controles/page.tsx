@@ -84,7 +84,7 @@ export default function ControlesPage() {
     refetch,
   } = useRisks({
     page: 1,
-    perPage: 200,
+    perPage: 100,
     companyId: activeCompany?.id ?? undefined,
   }, hasHydratedCompany)
 
