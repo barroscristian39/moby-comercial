@@ -46,6 +46,7 @@ export const epiDeliveriesApi = {
     page?: number
     perPage?: number
     companyId?: string
+    unitId?: string
     employeeId?: string
     epiItemId?: string
   }) => {

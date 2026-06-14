@@ -26,6 +26,7 @@ import { RequestUser, Role, PaginationSchema, Permission } from '@moby/shared'
 
 const EpiDeliveryFilterSchema = PaginationSchema.extend({
   companyId:   z.string().uuid().optional(),
+  unitId:      z.string().uuid().optional(),
   employeeId: z.string().uuid().optional(),
   epiItemId:  z.string().uuid().optional(),
 })
@@ -42,8 +43,8 @@ export class EpiDeliveriesController {
     @CurrentUser() user: RequestUser,
     @Query(new ZodPipe(EpiDeliveryFilterSchema)) query: any,
   ) {
-    const { page, perPage, companyId, employeeId, epiItemId } = query
-    return this.epiDeliveriesService.findAll(user, { page, perPage }, employeeId, epiItemId, companyId)
+    const { page, perPage, companyId, unitId, employeeId, epiItemId } = query
+    return this.epiDeliveriesService.findAll(user, { page, perPage }, employeeId, epiItemId, companyId, unitId)
   }
 
   // Ficha completa de EPI de um colaborador — histórico de todas as entregas

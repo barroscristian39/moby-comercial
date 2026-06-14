@@ -80,6 +80,8 @@ export default function EpiPage() {
   const [busca, setBusca] = useState('')
   const [buscaFicha, setBuscaFicha] = useState('')
   const [filtroEmpresaId, setFiltroEmpresaId] = useState('')
+  const [filtroEntregasEmpresaId, setFiltroEntregasEmpresaId] = useState('')
+  const [filtroEntregasUnidadeId, setFiltroEntregasUnidadeId] = useState('')
   const [modalEpiAberto, setModalEpiAberto] = useState(false)
   const [modalEntregaAberto, setModalEntregaAberto] = useState(false)
   const [editando, setEditando] = useState<EpiItem | null>(null)
@@ -91,7 +93,13 @@ export default function EpiPage() {
   const { data: epiData, isLoading, isError } = useEpiItems({ page: 1, perPage: 100 })
   const { data: deliveriesData, isLoading: loadingDeliveries } = useEpiDeliveries({
     page: 1, perPage: 200,
-    companyId: filtroEmpresaId || undefined,
+    companyId: filtroEntregasEmpresaId || undefined,
+    unitId: filtroEntregasUnidadeId || undefined,
+  })
+  const { data: unidadesFiltroData } = useUnits({
+    page: 1,
+    perPage: 100,
+    companyId: filtroEntregasEmpresaId || undefined,
   })
   const createEpiItem = useCreateEpiItem()
   const updateEpiItem = useUpdateEpiItem()
@@ -99,15 +107,20 @@ export default function EpiPage() {
 
   const companies = companiesData?.data ?? []
   const companyMap = Object.fromEntries(companies.map((c) => [c.id, c.tradeName ?? c.name]))
+  const unidadesFiltro = unidadesFiltroData?.data ?? []
   const allEpis = epiData?.data ?? []
   const allDeliveries = deliveriesData?.data ?? []
 
   const episFiltrados = allEpis.filter((e) => {
     const termo = busca.toLowerCase()
+    const correspondeEmpresa = !filtroEmpresaId || e.companyId === filtroEmpresaId
     return (
-      e.name.toLowerCase().includes(termo) ||
-      e.caNumber.includes(termo) ||
-      (e.manufacturer ?? '').toLowerCase().includes(termo)
+      correspondeEmpresa &&
+      (
+        e.name.toLowerCase().includes(termo) ||
+        e.caNumber.includes(termo) ||
+        (e.manufacturer ?? '').toLowerCase().includes(termo)
+      )
     )
   })
 
@@ -242,7 +255,7 @@ export default function EpiPage() {
     setUnidadeEntregaId('')
     setBuscaColaboradorEntrega('')
     formEntrega.reset({
-      empresaId: filtroEmpresaId, employeeId: '', epiItemId: '',
+      empresaId: filtroEntregasEmpresaId, employeeId: '', epiItemId: '',
       quantity: 1,
       deliveredAt: new Date().toISOString().split('T')[0],
       reason: 'ADMISSION', condition: 'NEW',
@@ -399,14 +412,40 @@ export default function EpiPage() {
 
           {/* ── Aba: Fichas ── */}
           <TabsContent value="fichas" className="space-y-4 mt-4">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Buscar colaborador..."
-                className="pl-8 h-8 text-xs"
-                value={buscaFicha}
-                onChange={(e) => setBuscaFicha(e.target.value)}
-              />
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative w-full max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar colaborador..."
+                  className="pl-8 h-8 text-xs"
+                  value={buscaFicha}
+                  onChange={(e) => setBuscaFicha(e.target.value)}
+                />
+              </div>
+              <select
+                className="h-8 rounded-md border border-input bg-background px-3 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                value={filtroEntregasEmpresaId}
+                onChange={(e) => {
+                  setFiltroEntregasEmpresaId(e.target.value)
+                  setFiltroEntregasUnidadeId('')
+                }}
+              >
+                <option value="">Todas as empresas</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.tradeName ?? c.name}</option>
+                ))}
+              </select>
+              <select
+                className="h-8 rounded-md border border-input bg-background px-3 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                value={filtroEntregasUnidadeId}
+                disabled={!filtroEntregasEmpresaId}
+                onChange={(e) => setFiltroEntregasUnidadeId(e.target.value)}
+              >
+                <option value="">Todas as unidades</option>
+                {unidadesFiltro.map((unidade) => (
+                  <option key={unidade.id} value={unidade.id}>{unidade.name}</option>
+                ))}
+              </select>
             </div>
 
             <Card>
@@ -452,16 +491,32 @@ export default function EpiPage() {
           {/* ── Aba: Movimentações ── */}
           <TabsContent value="movimentacoes" className="space-y-4 mt-4">
             <div className="flex items-center justify-between gap-4">
-              <select
-                className="h-8 rounded-md border border-input bg-background px-3 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                value={filtroEmpresaId}
-                onChange={(e) => setFiltroEmpresaId(e.target.value)}
-              >
-                <option value="">Todas as empresas</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.tradeName ?? c.name}</option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  className="h-8 rounded-md border border-input bg-background px-3 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  value={filtroEntregasEmpresaId}
+                  onChange={(e) => {
+                    setFiltroEntregasEmpresaId(e.target.value)
+                    setFiltroEntregasUnidadeId('')
+                  }}
+                >
+                  <option value="">Todas as empresas</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.tradeName ?? c.name}</option>
+                  ))}
+                </select>
+                <select
+                  className="h-8 rounded-md border border-input bg-background px-3 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                  value={filtroEntregasUnidadeId}
+                  disabled={!filtroEntregasEmpresaId}
+                  onChange={(e) => setFiltroEntregasUnidadeId(e.target.value)}
+                >
+                  <option value="">Todas as unidades</option>
+                  {unidadesFiltro.map((unidade) => (
+                    <option key={unidade.id} value={unidade.id}>{unidade.name}</option>
+                  ))}
+                </select>
+              </div>
               <Button size="sm" onClick={abrirModalEntrega}>
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
                 Registrar Entrega

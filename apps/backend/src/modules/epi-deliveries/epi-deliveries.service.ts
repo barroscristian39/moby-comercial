@@ -24,6 +24,7 @@ export class EpiDeliveriesService {
     employeeId?: string,
     epiItemId?: string,
     requestedCompanyId?: string,
+    requestedUnitId?: string,
   ) {
     const companyId = this.resolveCompanyId(currentUser, requestedCompanyId)
 
@@ -33,6 +34,7 @@ export class EpiDeliveriesService {
       pagination.perPage,
       employeeId,
       epiItemId,
+      requestedUnitId,
     )
 
     return {

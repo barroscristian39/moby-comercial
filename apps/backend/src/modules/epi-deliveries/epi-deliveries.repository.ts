@@ -11,12 +11,14 @@ export class EpiDeliveriesRepository {
     perPage: number,
     employeeId?: string,
     epiItemId?: string,
+    unitId?: string,
   ) {
     const where = {
       ...(companyId ? { companyId } : {}),
       deletedAt: null,
       ...(employeeId ? { employeeId } : {}),
       ...(epiItemId  ? { epiItemId }  : {}),
+      ...(unitId ? { employee: { unitId } } : {}),
     }
 
     const [items, total] = await Promise.all([
