@@ -199,7 +199,7 @@ export class EmployeesService {
     }
 
     const scope: EmployeeAccessScope = {
-      tenantId: currentUser.tenantId,
+      ...(requested.companyId ? {} : { tenantId: currentUser.tenantId }),
       ...(requested.companyId
         ? { companyId: requested.companyId }
         : companyIds.length > 0
