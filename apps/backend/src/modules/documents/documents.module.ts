@@ -12,6 +12,9 @@ import { DocumentsService } from './documents.service'
 import { DocxTemplateService } from './docx-template.service'
 import { EmployeeDocumentsController } from './employee-documents.controller'
 import { FunctionTemplatesController } from './function-templates.controller'
+import { SstLegalDocumentsController } from './sst-legal-documents.controller'
+import { SstLegalDocumentsRepository } from './sst-legal-documents.repository'
+import { SstLegalDocumentsService } from './sst-legal-documents.service'
 
 @Module({
   imports: [PrismaModule, AuditModule, AuthorizationModule],
@@ -19,10 +22,19 @@ import { FunctionTemplatesController } from './function-templates.controller'
     FunctionTemplatesController,
     AccidentTemplatesController,
     DocumentsController,
+    SstLegalDocumentsController,
     EmployeeDocumentsController,
     AccidentDocumentsController,
   ],
-  providers: [DocumentsRepository, DocumentsService, DocumentStorageService, DocumentExportService, DocxTemplateService],
+  providers: [
+    DocumentsRepository,
+    DocumentsService,
+    SstLegalDocumentsRepository,
+    SstLegalDocumentsService,
+    DocumentStorageService,
+    DocumentExportService,
+    DocxTemplateService,
+  ],
   exports: [DocumentsService],
 })
 export class DocumentsModule {}

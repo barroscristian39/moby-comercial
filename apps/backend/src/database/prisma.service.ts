@@ -17,6 +17,7 @@ type PrismaModelDelegateName =
   | 'generatedDocument'
   | 'accidentTemplate'
   | 'accidentGeneratedDocument'
+  | 'sstLegalDocument'
   | 'documentAuditLog'
   | 'user'
   | 'notification'
@@ -55,6 +56,7 @@ const MODEL_DELEGATES: PrismaModelDelegateName[] = [
   'generatedDocument',
   'accidentTemplate',
   'accidentGeneratedDocument',
+  'sstLegalDocument',
   'documentAuditLog',
   'user',
   'notification',

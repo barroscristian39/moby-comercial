@@ -237,6 +237,20 @@ enum GeneratedDocumentStatus {
   DELETED
 }
 
+enum SstLegalDocumentType {
+  PGR
+  PCMSO
+  LTCAT
+  LIP
+}
+
+enum SstLegalDocumentStatus {
+  DRAFT
+  ACTIVE
+  SUPERSEDED
+  ARCHIVED
+}
+
 enum DocumentAuditAction {
   CREATED
   DELETED
@@ -265,6 +279,7 @@ model Tenant {
   generatedDocuments GeneratedDocument[]
   accidentTemplates  AccidentTemplate[]
   accidentGeneratedDocuments AccidentGeneratedDocument[]
+  sstLegalDocuments  SstLegalDocument[]
   accidentEvidences  AccidentEvidence[]
   documentAuditLogs  DocumentAuditLog[]
   employees          Employee[]
@@ -315,6 +330,7 @@ model Company {
   accidents     Accident[]
   accidentTemplates AccidentTemplate[]
   accidentGeneratedDocuments AccidentGeneratedDocument[]
+  sstLegalDocuments SstLegalDocument[]
   accidentEvidences AccidentEvidence[]
   employees     Employee[]
   epiItems      EpiItem[]
@@ -361,6 +377,7 @@ model Unit {
   userAccess         UserUnitAccess[]
   functionUnits      FunctionUnit[]
   generatedDocuments GeneratedDocument[]
+  sstLegalDocuments  SstLegalDocument[]
   occupationalExams  OccupationalExam[]
   trainings          Training[]
 
@@ -766,6 +783,37 @@ model DocumentAuditLog {
   @@map("document_audit_logs")
 }
 
+model SstLegalDocument {
+  id             String                 @id @default(uuid())
+  tenantId       String                 @map("tenant_id")
+  companyId      String                 @map("company_id")
+  unitId         String?                @map("unit_id")
+  documentType   SstLegalDocumentType   @map("document_type")
+  title          String
+  version        Int
+  status         SstLegalDocumentStatus @default(ACTIVE)
+  summary        String?
+  contentHtml    String                 @map("content_html") @db.Text
+  effectiveFrom  DateTime?              @map("effective_from") @db.Date
+  effectiveUntil DateTime?              @map("effective_until") @db.Date
+  generatedBy    String                 @map("generated_by")
+  generatedAt    DateTime               @default(now()) @map("generated_at")
+  deletedAt      DateTime?              @map("deleted_at")
+  deletedBy      String?                @map("deleted_by")
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+  company   Company @relation(fields: [companyId], references: [id])
+  unit      Unit?   @relation(fields: [unitId], references: [id])
+  generator User    @relation("SstLegalDocumentGeneratedBy", fields: [generatedBy], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@index([companyId, documentType, version])
+  @@index([unitId])
+  @@index([status, generatedAt])
+  @@map("sst_legal_documents")
+}
+
 model User {
   id           String    @id @default(uuid())
   tenantId     String?   @map("tenant_id")
@@ -793,6 +841,7 @@ model User {
   createdAccidentTemplates AccidentTemplate[]
   generatedAccidentDocuments AccidentGeneratedDocument[]
   createdAccidentEvidences AccidentEvidence[]   @relation("AccidentEvidenceCreatedBy")
+  generatedSstLegalDocuments SstLegalDocument[] @relation("SstLegalDocumentGeneratedBy")
   documentAuditLogs        DocumentAuditLog[]   @relation("DocumentAuditUser")
   companyAccess            UserCompanyAccess[]
   unitAccess               UserUnitAccess[]

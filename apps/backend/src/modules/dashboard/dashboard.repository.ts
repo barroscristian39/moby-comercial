@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { GeneratedDocumentStatus, OccupationalExamType, Prisma, RiskLevel } from '@prisma/client'
+import { GeneratedDocumentStatus, OccupationalExamType, Prisma, RiskLevel, SstLegalDocumentStatus } from '@prisma/client'
 import { PrismaService } from '../../database/prisma.service'
 
 type DashboardScope = {
@@ -39,6 +39,7 @@ export class DashboardRepository {
     const accidentWhere = this.buildAccidentWhere(scope)
     const generatedDocumentWhere = this.buildGeneratedDocumentWhere(scope)
     const accidentGeneratedDocumentWhere = this.buildAccidentGeneratedDocumentWhere(scope)
+    const sstLegalDocumentWhere = this.buildSstLegalDocumentWhere(scope)
     const epiWhere = this.buildEpiWhere(scope)
     const occupationalExamWhere = this.buildOccupationalExamWhere(scope)
 
@@ -50,6 +51,7 @@ export class DashboardRepository {
       accidentsWithoutLeave,
       generatedDocuments,
       accidentGeneratedDocuments,
+      sstLegalDocuments,
       expiredEpis,
       criticalRisks,
     ] = await Promise.all([
@@ -75,6 +77,7 @@ export class DashboardRepository {
       }),
       this.prisma.generatedDocument.count({ where: generatedDocumentWhere }),
       this.prisma.accidentGeneratedDocument.count({ where: accidentGeneratedDocumentWhere }),
+      this.prisma.sstLegalDocument.count({ where: sstLegalDocumentWhere }),
       this.prisma.epiItem.count({
         where: {
           ...epiWhere,
@@ -94,7 +97,7 @@ export class DashboardRepository {
       employees,
       supplementaryExams,
       supplementaryExamsAvailable: true,
-      reportsIssued: generatedDocuments + accidentGeneratedDocuments,
+      reportsIssued: generatedDocuments + accidentGeneratedDocuments + sstLegalDocuments,
       accidentsWithLeave,
       accidentsWithoutLeave,
       expiredEpis,
@@ -168,6 +171,16 @@ export class DashboardRepository {
       ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
       ...(scope.companyIds !== undefined ? { companyId: { in: scope.companyIds } } : {}),
       ...(scope.unitIds !== undefined ? { unitId: { in: scope.unitIds } } : {}),
+    }
+  }
+
+  private buildSstLegalDocumentWhere(scope: DashboardScope): Prisma.SstLegalDocumentWhereInput {
+    return {
+      deletedAt: null,
+      status: SstLegalDocumentStatus.ACTIVE,
+      ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
+      ...(scope.companyIds !== undefined ? { companyId: { in: scope.companyIds } } : {}),
+      ...(scope.unitIds !== undefined ? { OR: [{ unitId: null }, { unitId: { in: scope.unitIds } }] } : {}),
     }
   }
 

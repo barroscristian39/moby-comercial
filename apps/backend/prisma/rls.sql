@@ -100,6 +100,8 @@ ALTER TABLE "accident_templates" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "accident_templates" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "accident_generated_documents" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "accident_generated_documents" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "sst_legal_documents" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "sst_legal_documents" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "accident_evidences" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "accident_evidences" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "document_audit_logs" ENABLE ROW LEVEL SECURITY;
@@ -143,6 +145,7 @@ DROP POLICY IF EXISTS function_templates_tenant_isolation ON "function_templates
 DROP POLICY IF EXISTS generated_documents_tenant_isolation ON "generated_documents";
 DROP POLICY IF EXISTS accident_templates_tenant_isolation ON "accident_templates";
 DROP POLICY IF EXISTS accident_generated_documents_tenant_isolation ON "accident_generated_documents";
+DROP POLICY IF EXISTS sst_legal_documents_tenant_isolation ON "sst_legal_documents";
 DROP POLICY IF EXISTS accident_evidences_tenant_isolation ON "accident_evidences";
 DROP POLICY IF EXISTS document_audit_logs_tenant_isolation ON "document_audit_logs";
 DROP POLICY IF EXISTS users_read_internal ON "users";
@@ -308,6 +311,17 @@ CREATE POLICY accident_templates_tenant_isolation ON "accident_templates"
   );
 
 CREATE POLICY accident_generated_documents_tenant_isolation ON "accident_generated_documents"
+  FOR ALL TO moby_app
+  USING (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  )
+  WITH CHECK (
+    public.moby_is_super_admin()
+    OR "tenant_id" = public.moby_current_tenant_id()
+  );
+
+CREATE POLICY sst_legal_documents_tenant_isolation ON "sst_legal_documents"
   FOR ALL TO moby_app
   USING (
     public.moby_is_super_admin()

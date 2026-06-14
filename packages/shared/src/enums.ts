@@ -246,6 +246,20 @@ export enum DocumentStatus {
   ARCHIVED = 'ARCHIVED',
 }
 
+export enum SstLegalDocumentType {
+  PGR = 'PGR',
+  PCMSO = 'PCMSO',
+  LTCAT = 'LTCAT',
+  LIP = 'LIP',
+}
+
+export enum SstLegalDocumentStatus {
+  DRAFT = 'DRAFT',
+  ACTIVE = 'ACTIVE',
+  SUPERSEDED = 'SUPERSEDED',
+  ARCHIVED = 'ARCHIVED',
+}
+
 export enum EsocialEventType {
   S2210 = 'S-2210',
   S2220 = 'S-2220',
