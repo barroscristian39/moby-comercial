@@ -180,16 +180,19 @@ export class EmployeesService {
       })
     }
 
-    const companyIds = currentUser.companyIds ?? []
+    const companyIds = Array.from(new Set([
+      ...(currentUser.companyIds ?? []),
+      ...(currentUser.companyId ? [currentUser.companyId] : []),
+    ]))
     const unitIds = currentUser.unitIds ?? []
 
-    if (requested.companyId && !companyIds.includes(requested.companyId)) {
+    if (requested.companyId && companyIds.length > 0 && !companyIds.includes(requested.companyId)) {
       throw new ForbiddenException({
         error: { code: 'FORBIDDEN', message: 'Empresa fora do escopo permitido', statusCode: 403 },
       })
     }
 
-    if (requested.unitId && !unitIds.includes(requested.unitId)) {
+    if (requested.unitId && unitIds.length > 0 && !unitIds.includes(requested.unitId)) {
       throw new ForbiddenException({
         error: { code: 'FORBIDDEN', message: 'Unidade fora do escopo permitido', statusCode: 403 },
       })
@@ -197,12 +200,16 @@ export class EmployeesService {
 
     const scope: EmployeeAccessScope = {
       tenantId: currentUser.tenantId,
-      ...(requested.companyId ? { companyId: requested.companyId } : { companyIds }),
+      ...(requested.companyId
+        ? { companyId: requested.companyId }
+        : companyIds.length > 0
+          ? { companyIds }
+          : {}),
     }
 
     if (requested.unitId) {
       scope.unitId = requested.unitId
-    } else if (currentUser.role !== Role.TENANT_ADMIN) {
+    } else if (currentUser.role !== Role.TENANT_ADMIN && unitIds.length > 0) {
       scope.unitIds = unitIds
     }
 
@@ -220,7 +227,12 @@ export class EmployeesService {
       return
     }
 
-    if (!currentUser.companyIds?.includes(companyId)) {
+    const companyIds = Array.from(new Set([
+      ...(currentUser.companyIds ?? []),
+      ...(currentUser.companyId ? [currentUser.companyId] : []),
+    ]))
+
+    if (companyIds.length > 0 && !companyIds.includes(companyId)) {
       throw new ForbiddenException({
         error: { code: 'FORBIDDEN', message: 'Empresa fora do escopo permitido', statusCode: 403 },
       })
@@ -230,7 +242,8 @@ export class EmployeesService {
   private assertUnitWritable(currentUser: RequestUser, unitId: string) {
     if (currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN) return
 
-    if (!currentUser.unitIds?.includes(unitId)) {
+    const unitIds = currentUser.unitIds ?? []
+    if (unitIds.length > 0 && !unitIds.includes(unitId)) {
       throw new ForbiddenException({
         error: { code: 'FORBIDDEN', message: 'Unidade fora do escopo permitido', statusCode: 403 },
       })
