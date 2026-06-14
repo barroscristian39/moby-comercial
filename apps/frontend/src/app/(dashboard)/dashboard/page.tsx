@@ -24,7 +24,6 @@ import {
   Loader2,
   LogOut,
   MapPin,
-  Menu,
   MoreHorizontal,
   RefreshCw,
   Settings,
@@ -292,14 +291,7 @@ export default function DashboardPage() {
 
         {/* ── Header ─────────────────────────────────────── */}
         <header className="flex items-center justify-between px-5 py-3 bg-white shadow-[0_1px_0_rgba(0,0,0,0.06),0_4px_16px_rgba(15,23,42,0.08)] z-10">
-          <button
-            type="button"
-            onClick={() => setMobilePanel('menu')}
-            className="h-10 w-10 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-50"
-            aria-label="Abrir menu"
-          >
-            <Menu className="h-[22px] w-[22px]" />
-          </button>
+          <div className="h-10 w-10" aria-hidden="true" />
 
           <Image
             src={companySelectLogoHorizontal}
