@@ -20,14 +20,15 @@ export class UnitsService {
     if (requestedCompanyId) {
       await this.authorizationService.assertCompanyAccess(currentUser, requestedCompanyId)
     }
+    const scopedUnitIds = currentUser.unitIds ?? []
 
     const { items, total } = await this.unitsRepository.findAll({
       tenantId: currentUser.role === Role.SUPER_ADMIN ? undefined : currentUser.tenantId ?? undefined,
       companyId: requestedCompanyId,
       unitIds:
-        currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN
+        currentUser.role === Role.SUPER_ADMIN || currentUser.role === Role.TENANT_ADMIN || scopedUnitIds.length === 0
           ? undefined
-          : currentUser.unitIds,
+          : scopedUnitIds,
       page: pagination.page,
       perPage: pagination.perPage,
       search,

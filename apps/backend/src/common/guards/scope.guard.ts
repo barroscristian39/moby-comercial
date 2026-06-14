@@ -26,12 +26,17 @@ export class ScopeGuard implements CanActivate {
     }
 
     const companyId = request.params?.companyId || request.body?.companyId || request.query?.companyId
-    if (companyId && !user.companyIds?.includes(companyId) && user.role !== Role.TENANT_ADMIN) {
+    const companyIds = Array.from(new Set([
+      ...(user.companyIds ?? []),
+      ...(user.companyId ? [user.companyId] : []),
+    ]))
+    if (companyId && companyIds.length > 0 && !companyIds.includes(companyId) && user.role !== Role.TENANT_ADMIN) {
       this.deny('Acesso fora do escopo de empresa')
     }
 
     const unitId = request.params?.unitId || request.body?.unitId || request.query?.unitId
-    if (unitId && !user.unitIds?.includes(unitId) && user.role !== Role.TENANT_ADMIN) {
+    const unitIds = user.unitIds ?? []
+    if (unitId && unitIds.length > 0 && !unitIds.includes(unitId) && user.role !== Role.TENANT_ADMIN) {
       this.deny('Acesso fora do escopo de unidade')
     }
 
